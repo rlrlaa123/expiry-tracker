@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# 시크릿 커밋 차단 훅 (DEV-GUIDE §1-5)
+set -euo pipefail
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged_files" ] && exit 0
+
+# .env 류 파일 자체를 차단 (.env.example은 허용)
+env_files=$(echo "$staged_files" | grep -E '(^|/)\.env(\..*)?$' | grep -v '\.example$' || true)
+if [ -n "$env_files" ]; then
+  echo "❌ pre-commit: .env 파일은 커밋할 수 없습니다:"
+  echo "$env_files"
+  exit 1
+fi
+
+# 스테이징된 내용에서 API 키 패턴 탐지
+# - AIza...        : Google API 키
+# - sk-...         : OpenAI/Anthropic 스타일 키
+# - 변수 대입형     : GEMINI_API_KEY=실제값 (플레이스홀더 제외)
+pattern='AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9_-]{20,}|(API_KEY|SECRET|TOKEN)[A-Z_]*\s*[:=]\s*["'"'"']?[A-Za-z0-9_-]{20,}'
+matches=$(git diff --cached -U0 | grep -E '^\+' | grep -EI "$pattern" || true)
+if [ -n "$matches" ]; then
+  echo "❌ pre-commit: API 키/시크릿으로 보이는 내용이 있습니다:"
+  echo "$matches" | head -5
+  echo "시크릿은 wrangler secret 또는 ~/.secrets/ 에 보관하세요."
+  exit 1
+fi
+
+exit 0
