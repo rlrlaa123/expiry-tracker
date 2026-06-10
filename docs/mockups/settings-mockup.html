@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>설정 — UI 목업</title>
+<style>
+  :root{
+    --bg:#ECEAE4; --surface:#FFFFFF; --canvas:#FAFAF7;
+    --ink:#1C1E1A; --muted:#878D85; --line:#E4E3DC;
+    --primary:#2E7D6B; --primary-soft:#E4F0EC;
+    --red:#D24B3F;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
+    color:var(--ink); display:flex; justify-content:center; padding:28px 12px 60px; min-height:100vh;
+  }
+  .phone{
+    width:390px; max-width:100%; height:780px; background:var(--canvas);
+    border-radius:34px; box-shadow:0 18px 50px rgba(30,32,28,.22), 0 0 0 10px #2a2c28;
+    overflow:hidden; position:relative; display:flex; flex-direction:column;
+  }
+  .statusbar{display:flex; justify-content:space-between; padding:12px 24px 4px; font-size:13px; font-weight:600; flex:none;}
+  .statusbar .icons{letter-spacing:2px; font-size:11px; color:#444;}
+  .appbar{padding:8px 20px 4px; flex:none;}
+  .appbar h1{font-size:22px; font-weight:800; letter-spacing:-.02em;}
+
+  .scroll{flex:1; overflow-y:auto; padding:12px 18px 100px; scrollbar-width:none;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  .sec-cap{font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.05em; margin:14px 2px 8px;}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:6px;}
+  .srow{display:flex; justify-content:space-between; align-items:center; padding:14px; border-bottom:1px solid var(--line); gap:10px;}
+  .srow:last-child{border-bottom:0;}
+  .srow .k{font-size:14.5px; font-weight:600;}
+  .srow .desc{font-size:12px; color:var(--muted); margin-top:3px; line-height:1.45;}
+  .ktag{font-size:10.5px; background:var(--primary-soft); color:var(--primary); border-radius:6px; padding:2px 6px; font-weight:700; margin-left:6px; vertical-align:1px;}
+
+  input[type=time]{
+    border:1px solid var(--line); border-radius:10px; padding:8px 10px;
+    font-family:inherit; font-size:14.5px; font-weight:700; background:var(--canvas); outline:none; color:var(--ink);
+  }
+
+  .switch{position:relative; width:46px; height:27px; flex:none;}
+  .switch input{opacity:0; width:0; height:0;}
+  .slider{position:absolute; inset:0; background:#D7D6CE; border-radius:99px; transition:background .15s; cursor:pointer;}
+  .slider::before{content:""; position:absolute; width:21px; height:21px; border-radius:50%;
+    background:#fff; top:3px; left:3px; transition:transform .15s; box-shadow:0 1px 3px rgba(0,0,0,.2);}
+  .switch input:checked + .slider{background:var(--primary);}
+  .switch input:checked + .slider::before{transform:translateX(19px);}
+
+  .preview{
+    background:var(--primary-soft); border-radius:12px; padding:12px 14px;
+    font-size:13px; color:#1f5547; line-height:1.5; margin:8px 0 2px;
+  }
+
+  .stepper{display:flex; align-items:center; gap:2px; flex:none;}
+  .stepper button{
+    width:30px; height:30px; border-radius:9px; border:1px solid var(--line); background:var(--canvas);
+    font-size:16px; cursor:pointer; font-family:inherit; color:var(--ink); line-height:1;
+  }
+  .stepper .val{width:62px; text-align:center; font-size:14px; font-weight:700;}
+  .del{
+    width:28px; height:28px; border-radius:9px; border:0; background:none; color:var(--muted);
+    font-size:15px; cursor:pointer; font-family:inherit; flex:none;
+  }
+  .del:hover{color:var(--red);}
+
+  .add-row{
+    width:100%; border:0; background:none; padding:14px; text-align:left;
+    font-size:14px; font-weight:700; color:var(--primary); cursor:pointer; font-family:inherit;
+  }
+
+  .dim-row{opacity:.55;}
+  .chip-soon{font-size:11px; background:var(--line); color:var(--muted); border-radius:7px; padding:3px 8px; font-weight:700; flex:none;}
+
+  .tabbar{
+    position:absolute; left:0; right:0; bottom:0; height:72px; background:rgba(250,250,247,.94);
+    backdrop-filter:blur(8px); border-top:1px solid var(--line);
+    display:flex; justify-content:space-around; align-items:center; padding-bottom:10px; z-index:4;
+  }
+  .tab{border:0; background:none; font-size:11px; color:var(--muted); cursor:pointer; font-family:inherit;
+    display:flex; flex-direction:column; gap:3px; align-items:center;}
+  .tab .ic{font-size:20px;}
+  .tab.on{color:var(--ink); font-weight:700;}
+
+  /* 카테고리 추가 시트 */
+  .dim{position:absolute; inset:0; background:rgba(20,22,18,.4); opacity:0; pointer-events:none; transition:opacity .2s; z-index:8;}
+  .dim.show{opacity:1; pointer-events:auto;}
+  .sheet{
+    position:absolute; left:0; right:0; bottom:0; background:var(--canvas); border-radius:22px 22px 0 0;
+    padding:22px 20px 32px; transform:translateY(105%); transition:transform .25s; z-index:9;
+  }
+  .sheet.show{transform:translateY(0);}
+  .sheet h3{font-size:17px; font-weight:800; margin-bottom:4px;}
+  .sheet p{font-size:12.5px; color:var(--muted); margin-bottom:16px; line-height:1.5;}
+  .sheet label{font-size:12px; font-weight:600; color:var(--muted); display:block; margin-bottom:6px;}
+  .sheet input[type=text]{
+    width:100%; border:1px solid var(--line); background:var(--surface); border-radius:12px;
+    padding:13px 14px; font-size:15px; font-family:inherit; outline:none; margin-bottom:14px;
+  }
+  .pao-set{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+  .pao-set .lbl{font-size:14px; font-weight:600;}
+  .pao-note{font-size:11.5px; color:var(--muted); margin-bottom:16px; line-height:1.5;}
+  .sheet .primary{
+    width:100%; border:0; background:var(--primary); color:#fff; border-radius:14px;
+    padding:15px 0; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; margin-bottom:8px;
+  }
+  .sheet .ghost{width:100%; border:0; background:none; color:var(--muted); padding:10px 0; font-size:13.5px; cursor:pointer; font-family:inherit;}
+
+  .toast{
+    position:absolute; left:16px; right:16px; bottom:88px; background:#22241F; color:#fff;
+    border-radius:14px; padding:13px 16px; font-size:13.5px; opacity:0; transform:translateY(10px);
+    pointer-events:none; transition:opacity .25s, transform .25s; z-index:10;
+  }
+  .toast.show{opacity:1; transform:translateY(0);}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="icons">●●● ▲ ▮</span></div>
+  <div class="appbar"><h1>설정</h1></div>
+
+  <div class="scroll">
+
+    <div class="sec-cap">알림</div>
+    <div class="card">
+      <div class="srow">
+        <div><div class="k">묶음 알림 시각</div>
+          <div class="desc">하루 한 번, 이 시각에 모아서 알려드려요</div></div>
+        <input type="time" id="alarmTime" value="09:00">
+      </div>
+      <div class="srow">
+        <div><div class="k">D-30 알림</div><div class="desc">한 달 전 — 여유 있게 소진 계획</div></div>
+        <label class="switch"><input type="checkbox" class="stage" data-s="D-30" checked><span class="slider"></span></label>
+      </div>
+      <div class="srow">
+        <div><div class="k">D-7 알림</div><div class="desc">일주일 전 — 이번 주에 쓰세요</div></div>
+        <label class="switch"><input type="checkbox" class="stage" data-s="D-7" checked><span class="slider"></span></label>
+      </div>
+      <div class="srow">
+        <div><div class="k">D-1 알림</div><div class="desc">하루 전 — 마지막 안내</div></div>
+        <label class="switch"><input type="checkbox" class="stage" data-s="D-1" checked><span class="slider"></span></label>
+      </div>
+      <div class="srow">
+        <div><div class="k">만료일 알림</div><div class="desc">만료 당일 — 폐기/연장 처리 안내</div></div>
+        <label class="switch"><input type="checkbox" class="stage" data-s="만료일" checked><span class="slider"></span></label>
+      </div>
+    </div>
+    <div class="preview" id="preview"></div>
+
+    <div class="sec-cap">카테고리 · 개봉 후 사용기한 (PAO)</div>
+    <div class="card" id="paoCard"></div>
+
+    <div class="sec-cap">데이터</div>
+    <div class="card">
+      <div class="srow">
+        <div><div class="k">저장 위치</div>
+          <div class="desc">모든 데이터는 이 기기에만 저장돼요. 서버로 전송되지 않아요.</div></div>
+        <span style="font-size:13px;font-weight:700;color:var(--primary);flex:none;">이 기기</span>
+      </div>
+      <div class="srow dim-row">
+        <div><div class="k">클라우드 백업</div>
+          <div class="desc">기기를 바꿔도 데이터 유지</div></div>
+        <span class="chip-soon">준비 중</span>
+      </div>
+    </div>
+
+    <div class="sec-cap">정보</div>
+    <div class="card">
+      <div class="srow"><div class="k">앱 버전</div><span style="font-size:13px;color:var(--muted);">1.0.0 (MVP)</span></div>
+    </div>
+
+  </div>
+
+  <div class="tabbar">
+    <button class="tab"><span class="ic">🏠</span>홈</button>
+    <button class="tab"><span class="ic">🗂️</span>아카이브</button>
+    <button class="tab on"><span class="ic">⚙️</span>설정</button>
+  </div>
+
+  <div class="dim" id="dim"></div>
+  <div class="sheet" id="sheet">
+    <h3>새 카테고리</h3>
+    <p>여기서 만든 카테고리는 사진 인식에도 반영돼요 — AI가 자동으로 분류해 드립니다.</p>
+    <label>이름</label>
+    <input type="text" id="catName" placeholder="예: 향수, 렌즈용품, 반려동물 간식">
+    <div class="pao-set">
+      <span class="lbl">개봉 후 사용기한</span>
+      <div class="stepper">
+        <button id="paoMinus">−</button>
+        <span class="val" id="paoVal">12개월</span>
+        <button id="paoPlus">＋</button>
+      </div>
+    </div>
+    <div class="pao-note">0으로 내리면 "설정 안 함" — 개봉해도 기한을 줄이지 않아요.</div>
+    <button class="primary" id="catSave">추가하기</button>
+    <button class="ghost" id="catCancel">취소</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* builtin: 삭제 불가(편집만), custom: 삭제 가능 */
+let cats = [
+  {nm:'선크림',   pao:12, builtin:true},
+  {nm:'립',       pao:12, builtin:true},
+  {nm:'마스카라', pao:6,  builtin:true},
+  {nm:'연고',     pao:6,  builtin:true},
+  {nm:'안약',     pao:1,  builtin:true},
+  {nm:'조미료',   pao:6,  builtin:true},
+];
+let newPao = 12;
+
+function renderPao(){
+  $('paoCard').innerHTML = cats.map((c, i) => `
+    <div class="srow">
+      <div class="k">${c.nm}${c.builtin ? '' : '<span class="ktag">내가 추가</span>'}</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div class="stepper">
+          <button data-i="${i}" data-d="-1">−</button>
+          <span class="val">${c.pao ? c.pao + '개월' : '없음'}</span>
+          <button data-i="${i}" data-d="1">＋</button>
+        </div>
+        ${c.builtin ? '' : `<button class="del" data-del="${i}">✕</button>`}
+      </div>
+    </div>`).join('') +
+    `<button class="add-row" id="addCat">＋ 새 카테고리 추가</button>`;
+
+  document.querySelectorAll('.stepper button[data-i]').forEach(b => b.onclick = () => {
+    const c = cats[+b.dataset.i];
+    c.pao = Math.min(36, Math.max(0, c.pao + (+b.dataset.d)));
+    renderPao();
+    toast(c.pao ? `${c.nm} → 개봉 후 ${c.pao}개월` : `${c.nm} → PAO 설정 안 함`);
+  });
+  document.querySelectorAll('.del').forEach(b => b.onclick = () => {
+    const c = cats[+b.dataset.del];
+    cats.splice(+b.dataset.del, 1);
+    renderPao();
+    toast(`'${c.nm}' 삭제됨 · 소속 품목은 '기타'로 이동`);
+  });
+  $('addCat').onclick = openSheet;
+}
+
+function openSheet(){
+  $('catName').value = ''; newPao = 12; $('paoVal').textContent = '12개월';
+  $('dim').classList.add('show'); $('sheet').classList.add('show');
+  setTimeout(() => $('catName').focus(), 250);
+}
+function closeSheet(){ $('dim').classList.remove('show'); $('sheet').classList.remove('show'); }
+$('dim').onclick = closeSheet;
+$('catCancel').onclick = closeSheet;
+
+$('paoMinus').onclick = () => { newPao = Math.max(0, newPao-1); $('paoVal').textContent = newPao ? newPao+'개월' : '없음'; };
+$('paoPlus').onclick  = () => { newPao = Math.min(36, newPao+1); $('paoVal').textContent = newPao+'개월'; };
+
+$('catSave').onclick = () => {
+  const nm = $('catName').value.trim();
+  if (!nm){ toast('카테고리 이름을 입력해 주세요'); return; }
+  if (cats.some(c => c.nm === nm)){ toast('이미 있는 카테고리예요'); return; }
+  cats.push({nm, pao:newPao, builtin:false});
+  closeSheet(); renderPao();
+  toast(`'${nm}' 추가됨 · 사진 인식에도 반영돼요`);
+};
+
+function renderPreview(){
+  const on = [...document.querySelectorAll('.stage:checked')].map(x => x.dataset.s);
+  const t = $('alarmTime').value;
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h < 12 ? '오전' : '오후';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  $('preview').textContent = on.length
+    ? `매일 ${ampm} ${h12}:${String(m).padStart(2,'0')}에 ${on.join(' · ')} 단계를 한 번에 묶어서 알려드려요.`
+    : '모든 알림이 꺼져 있어요. 만료를 놓칠 수 있어요.';
+}
+document.querySelectorAll('.stage').forEach(x => x.onchange = renderPreview);
+$('alarmTime').onchange = () => { renderPreview(); toast('알림 시각이 변경됐어요'); };
+
+function toast(msg){
+  $('toast').textContent = msg; $('toast').classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => $('toast').classList.remove('show'), 2600);
+}
+
+renderPao(); renderPreview();
+</script>
+</body>
+</html>

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>확인/편집 폼 — UI 목업</title>
+<style>
+  :root{
+    --bg:#ECEAE4; --surface:#FFFFFF; --canvas:#FAFAF7;
+    --ink:#1C1E1A; --muted:#878D85; --line:#E4E3DC;
+    --primary:#2E7D6B; --primary-soft:#E4F0EC;
+    --warn-border:#E4B33C; --warn-bg:#FDF8E7;
+    --danger:#D24B3F;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
+    color:var(--ink);
+    display:flex; flex-direction:column; align-items:center;
+    padding:28px 12px 60px; min-height:100vh;
+  }
+
+  /* ── 데모 상태 스위처 (목업용, 앱 화면 아님) ── */
+  .demo-bar{
+    display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap; justify-content:center;
+  }
+  .demo-label{font-size:12px; color:#6b6f68; letter-spacing:.04em;}
+  .seg{display:flex; background:#DDDBD2; border-radius:99px; padding:3px;}
+  .seg button{
+    border:0; background:transparent; padding:7px 14px; border-radius:99px;
+    font-size:13px; color:#5c605a; cursor:pointer; font-family:inherit;
+  }
+  .seg button.on{background:#fff; color:var(--ink); font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.12);}
+
+  /* ── 폰 프레임 ── */
+  .phone{
+    width:390px; max-width:100%; background:var(--canvas);
+    border-radius:34px; box-shadow:0 18px 50px rgba(30,32,28,.22), 0 0 0 10px #2a2c28;
+    overflow:hidden; position:relative;
+  }
+  .statusbar{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 24px 4px; font-size:13px; font-weight:600;
+  }
+  .statusbar .icons{letter-spacing:2px; font-size:11px; color:#444;}
+
+  .appbar{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 18px 12px;
+  }
+  .appbar .close{font-size:20px; color:var(--muted); background:none; border:0; cursor:pointer; width:36px; text-align:left;}
+  .appbar h1{font-size:16px; font-weight:700;}
+  .appbar .save{
+    border:0; background:var(--primary); color:#fff; font-weight:700; font-size:14px;
+    padding:8px 16px; border-radius:99px; cursor:pointer; font-family:inherit;
+  }
+
+  .sheet{padding:6px 18px 26px; display:flex; flex-direction:column; gap:16px;}
+
+  /* 썸네일 */
+  .thumb-row{display:flex; align-items:center; gap:14px;}
+  .thumb{
+    width:84px; height:84px; border-radius:18px; flex:none;
+    background:linear-gradient(150deg,#DCEAE4,#F2EFE3);
+    display:flex; align-items:center; justify-content:center; font-size:38px;
+    border:1px solid var(--line);
+  }
+  .thumb-hint{font-size:12px; color:var(--muted); line-height:1.5;}
+  .thumb-hint b{color:var(--ink); font-size:13px; display:block; margin-bottom:2px;}
+
+  /* 부분 성공 배너 */
+  .pao-banner{
+    display:none; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--primary-soft); border-radius:var(--radius);
+    padding:12px 14px; font-size:13px; line-height:1.45;
+  }
+  .pao-banner.show{display:flex;}
+  .pao-banner .apply{
+    border:0; background:var(--primary); color:#fff; border-radius:99px;
+    padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer; flex:none; font-family:inherit;
+  }
+
+  /* 필드 */
+  .field{display:flex; flex-direction:column; gap:6px;}
+  .field label{font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.03em;}
+  .field label .req{color:var(--danger);}
+  .field input[type=text], .field input[type=date]{
+    width:100%; border:1px solid var(--line); background:var(--surface);
+    border-radius:12px; padding:13px 14px; font-size:15px; font-family:inherit; color:var(--ink);
+    outline:none; transition:border-color .15s, background .15s;
+  }
+  .field input:focus{border-color:var(--primary);}
+  .field input.low-confidence{border-color:var(--warn-border); background:var(--warn-bg);}
+  .confidence-note{display:none; font-size:11.5px; color:#9a7b18;}
+  .low + .confidence-note{display:block;}
+
+  /* 칩 */
+  .chips{display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:none; border:1px solid var(--line); background:var(--surface);
+    padding:8px 14px; border-radius:99px; font-size:13.5px; color:var(--ink);
+    cursor:pointer; font-family:inherit; transition:all .12s;
+  }
+  .chip.on{background:var(--ink); color:#fff; border-color:var(--ink); font-weight:600;}
+  .chip.add{color:var(--muted);}
+
+  /* 기한 섹션 */
+  .date-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 14px; display:flex; flex-direction:column; gap:14px;
+  }
+  .date-card .section-title{font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.05em;}
+  .toggle-row{display:flex; justify-content:space-between; align-items:center; gap:10px;}
+  .toggle-row span{font-size:14px;}
+  .switch{position:relative; width:46px; height:27px; flex:none;}
+  .switch input{opacity:0; width:0; height:0;}
+  .slider{
+    position:absolute; inset:0; background:#D7D6CE; border-radius:99px;
+    transition:background .15s; cursor:pointer;
+  }
+  .slider::before{
+    content:""; position:absolute; width:21px; height:21px; border-radius:50%;
+    background:#fff; top:3px; left:3px; transition:transform .15s; box-shadow:0 1px 3px rgba(0,0,0,.2);
+  }
+  .switch input:checked + .slider{background:var(--primary);}
+  .switch input:checked + .slider::before{transform:translateX(19px);}
+  .sub-field{display:none; padding-left:4px;}
+  .sub-field.show{display:flex;}
+
+  /* 만료 예정 카드 (시그니처) */
+  .expiry-card{
+    border-radius:var(--radius); padding:16px;
+    background:linear-gradient(135deg,#23433B,#2E7D6B);
+    color:#fff; display:flex; justify-content:space-between; align-items:center; gap:10px;
+    transition:background .3s;
+  }
+  .expiry-card.empty{background:#EDEBE3; color:var(--muted);}
+  .expiry-card .left .cap{font-size:11.5px; opacity:.78; letter-spacing:.05em; margin-bottom:4px;}
+  .expiry-card .left .date{font-size:22px; font-weight:800; letter-spacing:-.01em;}
+  .expiry-card .left .why{font-size:12px; opacity:.85; margin-top:4px;}
+  .dday{
+    flex:none; background:rgba(255,255,255,.18); border-radius:12px;
+    padding:9px 13px; font-size:15px; font-weight:800;
+  }
+  .expiry-card.empty .dday{background:#DEDCD2; color:#8a8e85;}
+
+  .memo-toggle{
+    border:0; background:none; color:var(--muted); font-size:13.5px; text-align:left;
+    cursor:pointer; font-family:inherit; padding:2px 0;
+  }
+  .memo-area{display:none;}
+  .memo-area.show{display:block;}
+  .memo-area textarea{
+    width:100%; border:1px solid var(--line); border-radius:12px; padding:12px;
+    font-family:inherit; font-size:14px; min-height:70px; resize:none; background:var(--surface); outline:none;
+  }
+
+  /* 토스트 */
+  .toast{
+    position:absolute; left:16px; right:16px; bottom:18px;
+    background:#22241F; color:#fff; border-radius:14px; padding:14px 16px;
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    font-size:14px; opacity:0; transform:translateY(12px); pointer-events:none;
+    transition:opacity .25s, transform .25s;
+  }
+  .toast.show{opacity:1; transform:translateY(0); pointer-events:auto;}
+  .toast button{
+    border:0; background:none; color:#7FD4BC; font-weight:700; font-size:14px;
+    cursor:pointer; font-family:inherit; flex:none;
+  }
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <span class="demo-label">데모 · 인식 상태 전환</span>
+  <div class="seg">
+    <button data-state="success" class="on">인식 성공</button>
+    <button data-state="partial">부분 성공</button>
+    <button data-state="fail">인식 실패</button>
+  </div>
+</div>
+
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="icons">●●● ▲ ▮</span></div>
+
+  <div class="appbar">
+    <button class="close">✕</button>
+    <h1>새 품목</h1>
+    <button class="save" id="saveBtn">저장</button>
+  </div>
+
+  <div class="sheet">
+
+    <div class="thumb-row">
+      <div class="thumb" id="thumb">🧴</div>
+      <div class="thumb-hint"><b id="thumbTitle">사진 인식 완료</b><span id="thumbSub">탭하면 재촬영 / 크롭</span></div>
+    </div>
+
+    <div class="pao-banner" id="paoBanner">
+      <span id="paoText">선크림은 보통 <b>개봉 후 12개월</b>이에요</span>
+      <button class="apply" id="paoApply">적용</button>
+    </div>
+
+    <div class="field">
+      <label>품목명 <span class="req">*</span></label>
+      <input type="text" id="fName" placeholder="예: 선크림">
+    </div>
+
+    <div class="field">
+      <label>브랜드</label>
+      <div class="low" id="brandWrap" style="display:flex;flex-direction:column;gap:6px;">
+        <input type="text" id="fBrand" placeholder="선택 입력">
+      </div>
+      <span class="confidence-note" id="brandNote">인식 신뢰도가 낮아요 — 확인해 주세요</span>
+    </div>
+
+    <div class="field">
+      <label>카테고리</label>
+      <div class="chips" id="catChips">
+        <button class="chip" data-cat="선크림">선크림</button>
+        <button class="chip" data-cat="립">립</button>
+        <button class="chip" data-cat="마스카라">마스카라</button>
+        <button class="chip" data-cat="연고">연고</button>
+        <button class="chip" data-cat="안약">안약</button>
+        <button class="chip" data-cat="조미료">조미료</button>
+        <button class="chip add">＋</button>
+      </div>
+    </div>
+
+    <div class="date-card">
+      <div class="section-title">기한 정보</div>
+
+      <div class="field">
+        <label id="expLabel">유통기한</label>
+        <input type="date" id="fExp">
+      </div>
+
+      <div class="toggle-row">
+        <span>표기가 제조일이에요</span>
+        <label class="switch"><input type="checkbox" id="tMfg"><span class="slider"></span></label>
+      </div>
+
+      <div class="toggle-row">
+        <span>이미 개봉했어요</span>
+        <label class="switch"><input type="checkbox" id="tOpen"><span class="slider"></span></label>
+      </div>
+      <div class="sub-field field" id="openField">
+        <label>개봉일</label>
+        <input type="date" id="fOpenDate">
+      </div>
+
+      <div class="expiry-card empty" id="expiryCard">
+        <div class="left">
+          <div class="cap">만료 예정</div>
+          <div class="date" id="expiryDate">—</div>
+          <div class="why" id="expiryWhy">기한을 입력하면 자동 계산돼요</div>
+        </div>
+        <div class="dday" id="ddayPill">D-?</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>보관 위치</label>
+      <div class="chips" id="locChips">
+        <button class="chip" data-loc="욕실">욕실</button>
+        <button class="chip" data-loc="주방">주방</button>
+        <button class="chip" data-loc="약장">약장</button>
+        <button class="chip add">＋</button>
+      </div>
+    </div>
+
+    <button class="memo-toggle" id="memoToggle">＋ 메모 추가</button>
+    <div class="memo-area" id="memoArea"><textarea placeholder="메모"></textarea></div>
+
+  </div>
+
+  <div class="toast" id="toast">
+    <span id="toastText">저장됨 · D-643</span>
+    <button id="toastMore">하나 더 찍기</button>
+  </div>
+</div>
+
+<script>
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const PAO = {선크림:12, 립:12, 마스카라:6, 연고:6, 안약:1, 조미료:6};      // 개봉 후 (개월)
+const SHELF = {선크림:36, 립:36, 마스카라:24, 연고:24, 안약:12, 조미료:18}; // 제조일 기준 (개월)
+const EMOJI = {선크림:'🧴', 립:'💄', 마스카라:'👁️', 연고:'🩹', 안약:'💧', 조미료:'🧂'};
+
+const $ = id => document.getElementById(id);
+let cat = null, loc = null;
+
+function iso(d){ return d.toISOString().slice(0,10); }
+function fmt(d){ return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`; }
+function addMonths(d, m){ const r = new Date(d); r.setMonth(r.getMonth()+m); return r; }
+
+function recalc(){
+  const isMfg = $('tMfg').checked;
+  const isOpen = $('tOpen').checked;
+  $('expLabel').textContent = isMfg ? '제조일' : '유통기한';
+  $('openField').classList.toggle('show', isOpen);
+
+  const baseVal = $('fExp').value;
+  let exp = null, why = '';
+
+  if (baseVal){
+    const base = new Date(baseVal);
+    if (isMfg){
+      const months = SHELF[cat] ?? 24;
+      exp = addMonths(base, months);
+      why = `제조일 + 보존기간 ${months}개월 기준`;
+    } else {
+      exp = base;
+      why = '유통기한 기준';
+    }
+  }
+  if (isOpen && $('fOpenDate').value && cat){
+    const pao = addMonths(new Date($('fOpenDate').value), PAO[cat] ?? 12);
+    if (!exp || pao < exp){ exp = pao; why = `개봉일 + ${PAO[cat] ?? 12}개월 기준`; }
+    else { why += ' (개봉 기한보다 빠름)'; }
+  }
+
+  const card = $('expiryCard');
+  if (exp){
+    const dday = Math.round((exp - TODAY) / 86400000);
+    card.classList.remove('empty');
+    $('expiryDate').textContent = fmt(exp);
+    $('expiryWhy').textContent = why;
+    $('ddayPill').textContent = dday >= 0 ? `D-${dday}` : `D+${-dday}`;
+    card.dataset.dday = dday;
+  } else {
+    card.classList.add('empty');
+    $('expiryDate').textContent = '—';
+    $('expiryWhy').textContent = '기한을 입력하면 자동 계산돼요';
+    $('ddayPill').textContent = 'D-?';
+  }
+  // 부분 성공 배너: 카테고리는 있는데 계산할 기한이 없을 때
+  $('paoBanner').classList.toggle('show', !exp && !!cat && PAO[cat] !== undefined);
+  if (cat) $('paoText').innerHTML = `${cat}${'은는'.includes('') ? '' : '은(는)'} 보통 <b>개봉 후 ${PAO[cat]}개월</b>이에요`;
+}
+
+function setCat(name){
+  cat = name;
+  document.querySelectorAll('#catChips .chip').forEach(c =>
+    c.classList.toggle('on', c.dataset.cat === name));
+  $('thumb').textContent = EMOJI[name] ?? '📦';
+  recalc();
+}
+
+function setState(s){
+  $('tMfg').checked = false; $('tOpen').checked = false;
+  $('fOpenDate').value = iso(TODAY);
+  $('brandWrap').classList.remove('low'); $('fBrand').classList.remove('low-confidence');
+
+  if (s === 'success'){
+    $('fName').value = '라네즈 워터뱅크 선크림';
+    $('fBrand').value = '라네즈';
+    $('fExp').value = '2028-03-15';
+    setCat('선크림');
+    $('thumbTitle').textContent = '사진 인식 완료';
+  } else if (s === 'partial'){
+    $('fName').value = '닥터지 그린 선크림';
+    $('fBrand').value = '닥터지(?)';
+    $('fExp').value = '';
+    $('brandWrap').classList.add('low'); $('fBrand').classList.add('low-confidence');
+    setCat('선크림');
+    $('thumbTitle').textContent = '일부만 인식했어요';
+  } else {
+    $('fName').value = ''; $('fBrand').value = ''; $('fExp').value = '';
+    cat = null;
+    document.querySelectorAll('#catChips .chip').forEach(c => c.classList.remove('on'));
+    $('thumb').textContent = '📦';
+    $('thumbTitle').textContent = '인식하지 못했어요';
+    recalc();
+  }
+}
+
+/* 이벤트 바인딩 */
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.seg button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); setState(b.dataset.state);
+});
+document.querySelectorAll('#catChips .chip[data-cat]').forEach(c => c.onclick = () => setCat(c.dataset.cat));
+document.querySelectorAll('#locChips .chip[data-loc]').forEach(c => c.onclick = () => {
+  loc = c.dataset.loc;
+  document.querySelectorAll('#locChips .chip').forEach(x => x.classList.toggle('on', x === c));
+});
+['tMfg','tOpen','fExp','fOpenDate'].forEach(id => $(id).onchange = recalc);
+$('paoApply').onclick = () => { $('tOpen').checked = true; $('fOpenDate').value = iso(TODAY); recalc(); };
+$('memoToggle').onclick = () => $('memoArea').classList.toggle('show');
+$('saveBtn').onclick = () => {
+  const d = $('expiryCard').dataset.dday;
+  $('toastText').textContent = $('expiryCard').classList.contains('empty')
+    ? '저장됨 · 기한 미설정' : `저장됨 · D-${d}`;
+  $('toast').classList.add('show');
+  setTimeout(() => $('toast').classList.remove('show'), 3200);
+};
+$('toastMore').onclick = () => {
+  $('toast').classList.remove('show');
+  document.querySelectorAll('.seg button').forEach(x => x.classList.remove('on'));
+  document.querySelector('.seg button[data-state=fail]').classList.add('on');
+  setState('fail');
+};
+
+setState('success');
+</script>
+</body>
+</html>

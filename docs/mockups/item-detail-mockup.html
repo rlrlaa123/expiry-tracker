@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>품목 상세 — UI 목업</title>
+<style>
+  :root{
+    --bg:#ECEAE4; --surface:#FFFFFF; --canvas:#FAFAF7;
+    --ink:#1C1E1A; --muted:#878D85; --line:#E4E3DC;
+    --primary:#2E7D6B; --primary-soft:#E4F0EC;
+    --red:#D24B3F; --red-soft:#FBEAE8;
+    --orange:#D97E2B; --yellow:#C9A227;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
+    color:var(--ink); display:flex; flex-direction:column; align-items:center; padding:28px 12px 60px; min-height:100vh;
+  }
+  .demo-bar{display:flex; align-items:center; gap:10px; margin-bottom:18px;}
+  .demo-label{font-size:12px; color:#6b6f68;}
+  .seg{display:flex; background:#DDDBD2; border-radius:99px; padding:3px;}
+  .seg button{border:0; background:transparent; padding:7px 14px; border-radius:99px; font-size:13px; color:#5c605a; cursor:pointer; font-family:inherit;}
+  .seg button.on{background:#fff; color:var(--ink); font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.12);}
+
+  .phone{
+    width:390px; max-width:100%; height:780px; background:var(--canvas);
+    border-radius:34px; box-shadow:0 18px 50px rgba(30,32,28,.22), 0 0 0 10px #2a2c28;
+    overflow:hidden; position:relative; display:flex; flex-direction:column;
+  }
+  .statusbar{display:flex; justify-content:space-between; padding:12px 24px 4px; font-size:13px; font-weight:600; flex:none;}
+  .statusbar .icons{letter-spacing:2px; font-size:11px; color:#444;}
+  .appbar{display:flex; justify-content:space-between; align-items:center; padding:8px 16px; flex:none;}
+  .appbar button{border:0; background:none; font-size:19px; cursor:pointer; color:var(--ink);}
+
+  .scroll{flex:1; overflow-y:auto; padding:0 18px 120px; scrollbar-width:none;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  .hero{
+    height:170px; border-radius:20px; background:linear-gradient(150deg,#DCEAE4,#F2EFE3);
+    display:flex; align-items:center; justify-content:center; font-size:74px; margin-bottom:16px;
+    border:1px solid var(--line);
+  }
+  .title-row h2{font-size:21px; font-weight:800; letter-spacing:-.01em;}
+  .title-row .sub{font-size:13px; color:var(--muted); margin-top:3px;}
+  .tag-row{display:flex; gap:7px; margin:10px 0 16px;}
+  .tag{font-size:12px; border:1px solid var(--line); background:var(--surface); padding:5px 11px; border-radius:99px; color:var(--ink);}
+
+  /* 만료 카드 + 수명 진행바 (시그니처) */
+  .expiry-card{
+    border-radius:16px; padding:18px 16px 16px;
+    background:linear-gradient(135deg,#23433B,#2E7D6B); color:#fff; margin-bottom:14px;
+    transition:background .3s;
+  }
+  .expiry-card.warn{background:linear-gradient(135deg,#5C4116,#C9881F);}
+  .expiry-card.over{background:linear-gradient(135deg,#5A241F,#C2493D);}
+  .ec-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;}
+  .ec-top .cap{font-size:11.5px; opacity:.78; letter-spacing:.05em; margin-bottom:4px;}
+  .ec-top .date{font-size:23px; font-weight:800;}
+  .ec-top .why{font-size:12px; opacity:.85; margin-top:4px;}
+  .dday{background:rgba(255,255,255,.18); border-radius:12px; padding:9px 13px; font-size:16px; font-weight:800; flex:none;}
+  .life{height:7px; background:rgba(255,255,255,.22); border-radius:99px; overflow:hidden;}
+  .life .fill{height:100%; background:#fff; border-radius:99px; width:0%; transition:width .5s;}
+  .life-cap{display:flex; justify-content:space-between; font-size:10.5px; opacity:.75; margin-top:6px;}
+
+  /* 정보 rows */
+  .info-card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:14px;}
+  .irow{display:flex; justify-content:space-between; align-items:center; padding:13px 14px; border-bottom:1px solid var(--line); font-size:14px;}
+  .irow:last-child{border-bottom:0;}
+  .irow .k{color:var(--muted); font-size:13px;}
+  .irow .v{font-weight:600;}
+  .irow .v.dim{color:var(--muted); font-weight:400;}
+  .irow input[type=date]{
+    border:1px solid var(--line); border-radius:9px; padding:6px 9px; font-family:inherit; font-size:13.5px; background:var(--canvas); outline:none;
+  }
+
+  .memo-card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px; font-size:13.5px; color:var(--muted); margin-bottom:14px;}
+  .memo-card b{color:var(--ink); display:block; font-size:12px; margin-bottom:5px; letter-spacing:.04em;}
+
+  /* 하단 액션 바 */
+  .actionbar{
+    position:absolute; left:0; right:0; bottom:0; padding:14px 18px 26px;
+    background:linear-gradient(transparent, var(--canvas) 35%);
+    display:flex; gap:9px; z-index:4;
+  }
+  .abtn{
+    flex:1; border-radius:14px; padding:15px 0; font-size:14.5px; font-weight:700;
+    cursor:pointer; font-family:inherit; border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  }
+  .abtn.primary{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .abtn.danger{color:var(--red); border-color:#EFD3D0;}
+
+  /* 시트/토스트 */
+  .dim2{position:absolute; inset:0; background:rgba(20,22,18,.4); opacity:0; pointer-events:none; transition:opacity .2s; z-index:8;}
+  .dim2.show{opacity:1; pointer-events:auto;}
+  .sheet{
+    position:absolute; left:0; right:0; bottom:0; background:var(--canvas); border-radius:22px 22px 0 0;
+    padding:20px 20px 30px; transform:translateY(105%); transition:transform .25s; z-index:9;
+  }
+  .sheet.show{transform:translateY(0);}
+  .sheet h3{font-size:16px; font-weight:800; margin-bottom:4px;}
+  .sheet p{font-size:13px; color:var(--muted); margin-bottom:16px;}
+  .sheet .opt{
+    width:100%; text-align:left; border:1px solid var(--line); background:var(--surface); border-radius:12px;
+    padding:14px; font-size:14.5px; font-weight:600; font-family:inherit; cursor:pointer; margin-bottom:8px;
+  }
+  .toast{
+    position:absolute; left:16px; right:16px; bottom:104px; background:#22241F; color:#fff;
+    border-radius:14px; padding:13px 16px; font-size:13.5px; opacity:0; transform:translateY(10px);
+    pointer-events:none; transition:opacity .25s, transform .25s; z-index:10;
+  }
+  .toast.show{opacity:1; transform:translateY(0);}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <span class="demo-label">데모 · 샘플 품목</span>
+  <div class="seg">
+    <button data-item="sunscreen" class="on">미개봉 선크림</button>
+    <button data-item="eyedrop">개봉한 인공눈물</button>
+  </div>
+</div>
+
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="icons">●●● ▲ ▮</span></div>
+  <div class="appbar"><button>←</button><button>⋯</button></div>
+
+  <div class="scroll">
+    <div class="hero" id="hero">🧴</div>
+    <div class="title-row">
+      <h2 id="iName">라네즈 워터뱅크 선크림</h2>
+      <div class="sub" id="iBrand">라네즈</div>
+    </div>
+    <div class="tag-row" id="tags"></div>
+
+    <div class="expiry-card" id="ecard">
+      <div class="ec-top">
+        <div>
+          <div class="cap">만료 예정</div>
+          <div class="date" id="ecDate">—</div>
+          <div class="why" id="ecWhy">—</div>
+        </div>
+        <div class="dday" id="ecDday">D-?</div>
+      </div>
+      <div class="life"><div class="fill" id="lifeFill"></div></div>
+      <div class="life-cap"><span id="lifeStart">등록</span><span id="lifePct"></span><span>만료</span></div>
+    </div>
+
+    <div class="info-card">
+      <div class="irow"><span class="k">유통기한</span><input type="date" id="vExp"></div>
+      <div class="irow"><span class="k">제조일</span><span class="v dim" id="vMfg">—</span></div>
+      <div class="irow"><span class="k">개봉일</span><span class="v" id="vOpen">—</span></div>
+      <div class="irow"><span class="k">개봉 후 사용기한</span><span class="v" id="vPao">—</span></div>
+    </div>
+
+    <div class="memo-card"><b>메모</b><span id="vMemo"></span></div>
+  </div>
+
+  <div class="actionbar" id="actionbar"></div>
+
+  <div class="dim2" id="dim2"></div>
+  <div class="sheet" id="sheet">
+    <h3 id="shTitle">소진 처리</h3>
+    <p id="shDesc"></p>
+    <button class="opt" id="shConfirm">확인</button>
+    <button class="opt" id="shCancel" style="color:var(--muted);">취소</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const DAY = 86400000;
+const PAO = {선크림:12, 안약:1};
+const d = s => { const x = new Date(s); x.setHours(0,0,0,0); return x; };
+const addM = (dt,m) => { const r = new Date(dt); r.setMonth(r.getMonth()+m); return r; };
+const fmt = dt => `${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,'0')}.${String(dt.getDate()).padStart(2,'0')}`;
+const $ = id => document.getElementById(id);
+
+const SAMPLES = {
+  sunscreen:{ nm:'라네즈 워터뱅크 선크림', brand:'라네즈', em:'🧴', cat:'선크림', loc:'욕실',
+    exp:'2028-03-15', mfg:null, opened:null, reg:'2026-06-01', memo:'올리브영 세일 때 2개 구매' },
+  eyedrop:{ nm:'프렌즈 인공눈물', brand:'JW중외제약', em:'💧', cat:'안약', loc:'약장',
+    exp:'2027-09-30', mfg:'2025-09-30', opened:'2026-05-20', reg:'2026-05-20', memo:'개봉 후 1개월 — 한 달 지나면 미련 없이 폐기' },
+};
+let it = null, sheetMode = null;
+
+function load(key){
+  const s = SAMPLES[key];
+  it = { ...s,
+    exp: s.exp ? d(s.exp) : null, mfg: s.mfg ? d(s.mfg) : null,
+    opened: s.opened ? d(s.opened) : null, reg: d(s.reg) };
+}
+
+function calc(){
+  let exp = it.exp, why = '유통기한 기준';
+  if (it.opened && PAO[it.cat]){
+    const pao = addM(it.opened, PAO[it.cat]);
+    if (!exp || pao < exp){ exp = pao; why = `개봉일 + ${PAO[it.cat]}개월 기준`; }
+    else why = '유통기한 기준 (개봉 기한보다 빠름)';
+  }
+  return {exp, why, dday: exp ? Math.round((exp-TODAY)/DAY) : null};
+}
+
+function render(){
+  $('hero').textContent = it.em;
+  $('iName').textContent = it.nm;
+  $('iBrand').textContent = it.brand;
+  $('tags').innerHTML = `<span class="tag">${it.cat}</span><span class="tag">📍 ${it.loc}</span>` +
+    (it.opened ? `<span class="tag">개봉됨</span>` : `<span class="tag">미개봉</span>`);
+
+  const r = calc();
+  const card = $('ecard');
+  card.classList.remove('warn','over');
+  if (r.dday !== null && r.dday < 0) card.classList.add('over');
+  else if (r.dday !== null && r.dday <= 30) card.classList.add('warn');
+  $('ecDate').textContent = r.exp ? fmt(r.exp) : '—';
+  $('ecWhy').textContent = r.why;
+  $('ecDday').textContent = r.dday === null ? 'D-?' : (r.dday >= 0 ? `D-${r.dday}` : `D+${-r.dday}`);
+
+  /* 수명 진행바: (개봉일 또는 등록일) → 만료일 사이에서 오늘의 위치 */
+  const start = it.opened ?? it.reg;
+  let pct = 0;
+  if (r.exp && r.exp > start) pct = Math.min(100, Math.max(0, (TODAY-start)/(r.exp-start)*100));
+  $('lifeFill').style.width = pct + '%';
+  $('lifeStart').textContent = it.opened ? '개봉' : '등록';
+  $('lifePct').textContent = `${Math.round(pct)}% 경과`;
+
+  $('vExp').value = it.exp ? it.exp.toISOString().slice(0,10) : '';
+  $('vMfg').textContent = it.mfg ? fmt(it.mfg) : '—';
+  $('vOpen').textContent = it.opened ? fmt(it.opened) : '미개봉';
+  $('vPao').textContent = PAO[it.cat] ? `${PAO[it.cat]}개월 (${it.cat} 기본값)` : '—';
+  $('vMemo').textContent = it.memo;
+
+  /* 액션 바: 미개봉이면 [개봉]이 primary, 개봉 후엔 [소진]이 primary */
+  $('actionbar').innerHTML = it.opened
+    ? `<button class="abtn primary" data-a="used">소진했어요</button><button class="abtn danger" data-a="discard">폐기</button>`
+    : `<button class="abtn primary" data-a="open">개봉했어요</button><button class="abtn danger" data-a="discard">폐기</button>`;
+  document.querySelectorAll('.abtn').forEach(b => b.onclick = () => act(b.dataset.a));
+}
+
+function act(a){
+  if (a === 'open'){
+    it.opened = new Date(TODAY);
+    const r = calc();
+    toast(`개봉 기록됨 · 만료 ${fmt(r.exp)} (${r.why})`);
+    render(); return;
+  }
+  sheetMode = a;
+  $('shTitle').textContent = a === 'used' ? '소진 처리' : '폐기 처리';
+  $('shDesc').textContent = a === 'used'
+    ? '다 썼군요! 아카이브로 이동해요. 다시 사면 원탭으로 재등록할 수 있어요.'
+    : '아카이브로 이동해요. 폐기 이력은 재구매 판단에 참고돼요.';
+  $('dim2').classList.add('show'); $('sheet').classList.add('show');
+}
+$('shConfirm').onclick = () => {
+  closeSheet();
+  toast(sheetMode === 'used' ? '소진 처리됨 · 아카이브로 이동' : '폐기 처리됨 · 아카이브로 이동');
+};
+$('shCancel').onclick = closeSheet;
+$('dim2').onclick = closeSheet;
+function closeSheet(){ $('dim2').classList.remove('show'); $('sheet').classList.remove('show'); }
+
+$('vExp').onchange = e => {
+  it.exp = e.target.value ? d(e.target.value) : null;
+  toast('유통기한 수정됨');
+  render();
+};
+
+function toast(msg){
+  $('toast').textContent = msg; $('toast').classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => $('toast').classList.remove('show'), 2800);
+}
+
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.seg button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); load(b.dataset.item); render();
+});
+
+load('sunscreen'); render();
+</script>
+</body>
+</html>

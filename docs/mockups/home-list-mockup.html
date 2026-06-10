@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>홈(목록) — UI 목업</title>
+<style>
+  :root{
+    --bg:#ECEAE4; --surface:#FFFFFF; --canvas:#FAFAF7;
+    --ink:#1C1E1A; --muted:#878D85; --line:#E4E3DC;
+    --primary:#2E7D6B; --primary-soft:#E4F0EC;
+    --red:#D24B3F; --red-soft:#FBEAE8;
+    --orange:#D97E2B; --orange-soft:#FBF0E2;
+    --yellow:#C9A227; --yellow-soft:#FAF4DC;
+    --green:#2E7D6B; --green-soft:#E4F0EC;
+    --gray-soft:#EDECE6;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
+    color:var(--ink); display:flex; justify-content:center; padding:28px 12px 60px; min-height:100vh;
+  }
+  .phone{
+    width:390px; max-width:100%; height:780px; background:var(--canvas);
+    border-radius:34px; box-shadow:0 18px 50px rgba(30,32,28,.22), 0 0 0 10px #2a2c28;
+    overflow:hidden; position:relative; display:flex; flex-direction:column;
+  }
+  .statusbar{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 24px 4px; font-size:13px; font-weight:600; flex:none;
+  }
+  .statusbar .icons{letter-spacing:2px; font-size:11px; color:#444;}
+
+  .appbar{display:flex; justify-content:space-between; align-items:center; padding:8px 20px 4px; flex:none;}
+  .appbar h1{font-size:22px; font-weight:800; letter-spacing:-.02em;}
+  .appbar .search-btn{border:0; background:none; font-size:19px; cursor:pointer; color:var(--ink);}
+
+  .search-wrap{padding:8px 18px 0; display:none; flex:none;}
+  .search-wrap.show{display:block;}
+  .search-wrap input{
+    width:100%; border:1px solid var(--line); background:var(--surface); border-radius:12px;
+    padding:11px 14px; font-size:14px; font-family:inherit; outline:none;
+  }
+
+  .scroll{flex:1; overflow-y:auto; padding:10px 18px 110px; scrollbar-width:none;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  /* 임박 Top 5 */
+  .top5-cap{font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.05em; margin:6px 0 8px;}
+  .top5{display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; scrollbar-width:none; margin-bottom:8px;}
+  .top5::-webkit-scrollbar{display:none;}
+  .mini{
+    flex:none; width:108px; background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius); padding:11px 11px 10px; display:flex; flex-direction:column; gap:6px;
+  }
+  .mini .em{font-size:22px;}
+  .mini .nm{font-size:12.5px; font-weight:600; line-height:1.3; height:33px; overflow:hidden;}
+  .mini .dd{font-size:12px; font-weight:800; align-self:flex-start; padding:3px 8px; border-radius:8px;}
+
+  /* 필터 칩 */
+  .filters{display:flex; gap:8px; overflow-x:auto; padding:6px 0 12px; scrollbar-width:none;}
+  .filters::-webkit-scrollbar{display:none;}
+  .fchip{
+    flex:none; border:1px solid var(--line); background:var(--surface);
+    padding:7px 13px; border-radius:99px; font-size:13px; cursor:pointer; font-family:inherit; color:var(--ink);
+  }
+  .fchip.on{background:var(--ink); color:#fff; border-color:var(--ink); font-weight:600;}
+
+  /* 리스트 행 */
+  .row{
+    display:flex; align-items:center; gap:12px;
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    padding:12px; margin-bottom:9px;
+  }
+  .row .em{
+    width:46px; height:46px; flex:none; border-radius:12px; font-size:22px;
+    background:linear-gradient(150deg,#DCEAE4,#F2EFE3); display:flex; align-items:center; justify-content:center;
+  }
+  .row .info{flex:1; min-width:0;}
+  .row .nm{font-size:14.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .row .meta{font-size:12px; color:var(--muted); margin-top:3px;}
+  .badge{font-size:12px; font-weight:800; padding:4px 9px; border-radius:9px; flex:none;}
+  .b-red{background:var(--red-soft); color:var(--red);}
+  .b-orange{background:var(--orange-soft); color:var(--orange);}
+  .b-yellow{background:var(--yellow-soft); color:var(--yellow);}
+  .b-green{background:var(--green-soft); color:var(--green);}
+  .b-gray{background:var(--gray-soft); color:var(--muted);}
+  .act{
+    flex:none; border:1px solid var(--primary); color:var(--primary); background:none;
+    font-size:12.5px; font-weight:700; padding:7px 12px; border-radius:99px; cursor:pointer; font-family:inherit;
+  }
+  .act.danger{border-color:var(--red); color:var(--red);}
+  .empty-msg{text-align:center; color:var(--muted); font-size:13.5px; padding:34px 0;}
+
+  /* FAB */
+  .fab{
+    position:absolute; right:20px; bottom:86px; width:60px; height:60px; border-radius:50%;
+    border:0; background:var(--primary); color:#fff; font-size:24px; cursor:pointer;
+    box-shadow:0 8px 22px rgba(46,125,107,.45); z-index:5;
+  }
+
+  /* 탭바 */
+  .tabbar{
+    position:absolute; left:0; right:0; bottom:0; height:72px; background:rgba(250,250,247,.94);
+    backdrop-filter:blur(8px); border-top:1px solid var(--line);
+    display:flex; justify-content:space-around; align-items:center; padding-bottom:10px; z-index:4;
+  }
+  .tab{border:0; background:none; font-size:11px; color:var(--muted); cursor:pointer; font-family:inherit;
+    display:flex; flex-direction:column; gap:3px; align-items:center;}
+  .tab .ic{font-size:20px;}
+  .tab.on{color:var(--ink); font-weight:700;}
+
+  /* 바텀시트 */
+  .dim{position:absolute; inset:0; background:rgba(20,22,18,.4); opacity:0; pointer-events:none; transition:opacity .2s; z-index:8;}
+  .dim.show{opacity:1; pointer-events:auto;}
+  .sheet{
+    position:absolute; left:0; right:0; bottom:0; background:var(--canvas);
+    border-radius:22px 22px 0 0; padding:20px 20px 30px; transform:translateY(105%);
+    transition:transform .25s; z-index:9;
+  }
+  .sheet.show{transform:translateY(0);}
+  .sheet h3{font-size:16px; font-weight:800; margin-bottom:4px;}
+  .sheet p{font-size:13px; color:var(--muted); margin-bottom:16px;}
+  .sheet .opt{
+    width:100%; text-align:left; border:1px solid var(--line); background:var(--surface);
+    border-radius:12px; padding:14px; font-size:14.5px; font-weight:600; font-family:inherit;
+    cursor:pointer; margin-bottom:8px;
+  }
+  .sheet .opt small{display:block; font-weight:400; font-size:12px; color:var(--muted); margin-top:2px;}
+
+  /* 토스트 */
+  .toast{
+    position:absolute; left:16px; right:16px; bottom:88px;
+    background:#22241F; color:#fff; border-radius:14px; padding:13px 16px;
+    font-size:13.5px; opacity:0; transform:translateY(10px); pointer-events:none;
+    transition:opacity .25s, transform .25s; z-index:10;
+  }
+  .toast.show{opacity:1; transform:translateY(0);}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="icons">●●● ▲ ▮</span></div>
+
+  <div class="appbar">
+    <h1>우리집 물건</h1>
+    <button class="search-btn" id="searchBtn">🔍</button>
+  </div>
+  <div class="search-wrap" id="searchWrap">
+    <input type="text" id="searchInput" placeholder="품목명 검색">
+  </div>
+
+  <div class="scroll">
+    <div class="top5-cap">만료 임박 TOP 5</div>
+    <div class="top5" id="top5"></div>
+
+    <div class="filters" id="filters">
+      <button class="fchip on" data-f="all">전체</button>
+      <button class="fchip" data-f="soon">임박 (D-30)</button>
+      <button class="fchip" data-f="expired">만료</button>
+      <button class="fchip" data-f="unset">기한 미설정</button>
+      <button class="fchip" data-f="loc">📍 욕실</button>
+    </div>
+
+    <div id="list"></div>
+  </div>
+
+  <button class="fab" id="fab">📷</button>
+
+  <div class="tabbar">
+    <button class="tab on"><span class="ic">🏠</span>홈</button>
+    <button class="tab"><span class="ic">🗂️</span>아카이브</button>
+    <button class="tab"><span class="ic">⚙️</span>설정</button>
+  </div>
+
+  <div class="dim" id="dim"></div>
+  <div class="sheet" id="sheet">
+    <h3 id="sheetTitle">마데카솔 연고</h3>
+    <p>만료된 품목이에요. 어떻게 할까요?</p>
+    <button class="opt" data-op="discard">폐기했어요 <small>아카이브로 이동 · 다시 사면 원탭 재등록</small></button>
+    <button class="opt" data-op="keep">아직 사용 중이에요 <small>만료 뱃지를 유지한 채 목록에 남겨요</small></button>
+    <button class="opt" data-op="extend">기한 연장 <small>직접 확인했어요 · +30일</small></button>
+  </div>
+
+  <div class="toast" id="toast">토스트</div>
+</div>
+
+<script>
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const PAO = {선크림:12, 립:12, 마스카라:6, 연고:6, 안약:1, 조미료:6};
+const DAY = 86400000;
+const d = (s) => { const x = new Date(s); x.setHours(0,0,0,0); return x; };
+const addM = (dt, m) => { const r = new Date(dt); r.setMonth(r.getMonth()+m); return r; };
+const fmt = (dt) => `${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,'0')}.${String(dt.getDate()).padStart(2,'0')}`;
+
+/* 샘플 데이터 — 오늘 기준으로 상대 계산 */
+let items = [
+  {id:1, nm:'마데카솔 연고',        em:'🩹', cat:'연고',   loc:'약장', exp:d('2026-06-05'), opened:d('2026-04-01')},
+  {id:2, nm:'프렌즈 인공눈물',       em:'💧', cat:'안약',   loc:'약장', exp:null,            opened:d('2026-05-20')},
+  {id:3, nm:'오뚜기 참기름',         em:'🧂', cat:'조미료', loc:'주방', exp:d('2026-06-25'), opened:d('2026-02-10')},
+  {id:4, nm:'키스미 마스카라',       em:'👁️', cat:'마스카라',loc:'욕실', exp:null,            opened:d('2026-01-15')},
+  {id:5, nm:'타이레놀 500mg',       em:'💊', cat:'연고',   loc:'약장', exp:d('2026-09-30'), opened:null},
+  {id:6, nm:'라네즈 워터뱅크 선크림', em:'🧴', cat:'선크림', loc:'욕실', exp:d('2028-03-15'), opened:null},
+  {id:7, nm:'니베아 립밤',           em:'💄', cat:'립',     loc:'욕실', exp:d('2027-11-30'), opened:null},
+  {id:8, nm:'록시땅 핸드크림',       em:'🧴', cat:'선크림', loc:'욕실', exp:null,            opened:null},
+];
+
+function calcExpiry(it){
+  let exp = it.exp, why = '유통기한';
+  if (it.opened && PAO[it.cat]){
+    const pao = addM(it.opened, PAO[it.cat]);
+    if (!exp || pao < exp){ exp = pao; why = `개봉+${PAO[it.cat]}개월`; }
+  }
+  return exp ? {exp, why, dday: Math.round((exp - TODAY)/DAY)} : null;
+}
+function badge(r){
+  if (!r) return {cls:'b-gray', txt:'기한 미설정'};
+  if (r.dday < 0)  return {cls:'b-red',    txt:`D+${-r.dday}`};
+  if (r.dday <= 7) return {cls:'b-orange', txt:`D-${r.dday}`};
+  if (r.dday <= 30)return {cls:'b-yellow', txt:`D-${r.dday}`};
+  return {cls:'b-green', txt:`D-${r.dday}`};
+}
+
+let filter = 'all', query = '', sheetTarget = null;
+const $ = id => document.getElementById(id);
+
+function render(){
+  const enriched = items.map(it => ({...it, r: calcExpiry(it)}));
+  enriched.sort((a,b) => (a.r ? a.r.dday : 99999) - (b.r ? b.r.dday : 99999));
+
+  /* Top5 */
+  $('top5').innerHTML = enriched.filter(e => e.r).slice(0,5).map(e => {
+    const b = badge(e.r);
+    return `<div class="mini"><div class="em">${e.em}</div><div class="nm">${e.nm}</div><div class="dd ${b.cls}">${b.txt}</div></div>`;
+  }).join('');
+
+  /* 리스트 */
+  let rows = enriched.filter(e => {
+    if (query && !e.nm.includes(query)) return false;
+    if (filter === 'soon')    return e.r && e.r.dday >= 0 && e.r.dday <= 30;
+    if (filter === 'expired') return e.r && e.r.dday < 0;
+    if (filter === 'unset')   return !e.r;
+    if (filter === 'loc')     return e.loc === '욕실';
+    return true;
+  });
+
+  $('list').innerHTML = rows.length ? rows.map(e => {
+    const b = badge(e.r);
+    const meta = e.r ? `${e.loc} · ${fmt(e.r.exp)} 만료 (${e.r.why})` : `${e.loc} · 기한을 설정해 주세요`;
+    let action = '';
+    if (e.r && e.r.dday < 0) action = `<button class="act danger" data-handle="${e.id}">처리</button>`;
+    else if (!e.opened)       action = `<button class="act" data-open="${e.id}">개봉</button>`;
+    return `<div class="row"><div class="em">${e.em}</div>
+      <div class="info"><div class="nm">${e.nm}</div><div class="meta">${meta}</div></div>
+      <span class="badge ${b.cls}">${b.txt}</span>${action}</div>`;
+  }).join('') : `<div class="empty-msg">조건에 맞는 품목이 없어요</div>`;
+
+  /* 행 액션 바인딩 */
+  document.querySelectorAll('[data-open]').forEach(btn => btn.onclick = () => {
+    const it = items.find(x => x.id == btn.dataset.open);
+    it.opened = new Date(TODAY);
+    const r = calcExpiry(it);
+    toast(`개봉 기록됨 · ${r ? '만료 ' + fmt(r.exp) : '기한 미설정'}`);
+    render();
+  });
+  document.querySelectorAll('[data-handle]').forEach(btn => btn.onclick = () => {
+    sheetTarget = items.find(x => x.id == btn.dataset.handle);
+    $('sheetTitle').textContent = sheetTarget.nm;
+    $('dim').classList.add('show'); $('sheet').classList.add('show');
+  });
+}
+
+function toast(msg){
+  $('toast').textContent = msg;
+  $('toast').classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => $('toast').classList.remove('show'), 2600);
+}
+
+/* 필터/검색/시트/FAB */
+document.querySelectorAll('.fchip').forEach(c => c.onclick = () => {
+  document.querySelectorAll('.fchip').forEach(x => x.classList.remove('on'));
+  c.classList.add('on'); filter = c.dataset.f; render();
+});
+$('searchBtn').onclick = () => { $('searchWrap').classList.toggle('show'); $('searchInput').focus(); };
+$('searchInput').oninput = (e) => { query = e.target.value.trim(); render(); };
+$('dim').onclick = closeSheet;
+function closeSheet(){ $('dim').classList.remove('show'); $('sheet').classList.remove('show'); }
+document.querySelectorAll('.sheet .opt').forEach(o => o.onclick = () => {
+  const op = o.dataset.op;
+  if (op === 'discard'){ items = items.filter(x => x !== sheetTarget); toast('아카이브로 이동했어요'); }
+  if (op === 'keep'){ toast('목록에 남겨둘게요'); }
+  if (op === 'extend'){
+    const r = calcExpiry(sheetTarget);
+    sheetTarget.exp = new Date((r ? r.exp : TODAY).getTime() + 30*DAY);
+    sheetTarget.opened = null; /* 연장 데모: 연장된 EXP 기준으로 재계산 */
+    toast(`기한 연장됨 · ${fmt(sheetTarget.exp)}`);
+  }
+  closeSheet(); render();
+});
+$('fab').onclick = () => toast('📷 카메라 화면으로 이동 (목업)');
+
+render();
+</script>
+</body>
+</html>
