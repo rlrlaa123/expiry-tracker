@@ -68,6 +68,31 @@ function classify(line: string, c: Candidate): ParsedDateType {
   return 'UNKNOWN';
 }
 
+export interface AdoptedDates {
+  exp: IsoDate | null;
+  mfg: IsoDate | null;
+  /** UNKNOWN 단일을 EXP로 가정했음 — UI에서 low confidence(노란 테두리) 처리 */
+  expAssumed: boolean;
+}
+
+/**
+ * 파싱된 날짜들에서 폼 prefill 값을 채택 (SPEC §11 클라이언트 후처리 2).
+ * EXP 우선(복수면 가장 이른 날짜), MFG는 함께 보존,
+ * EXP 없이 UNKNOWN이 정확히 1개면 EXP로 가정하되 low 처리.
+ */
+export function adoptDates(dates: ParsedDate[]): AdoptedDates {
+  const exps = dates.filter((d) => d.type === 'EXP').map((d) => d.value);
+  const mfg = dates.find((d) => d.type === 'MFG')?.value ?? null;
+  if (exps.length > 0) {
+    return { exp: exps.reduce((a, b) => (b < a ? b : a)), mfg, expAssumed: false };
+  }
+  const unknowns = dates.filter((d) => d.type === 'UNKNOWN');
+  if (unknowns.length === 1) {
+    return { exp: unknowns[0].value, mfg, expAssumed: true };
+  }
+  return { exp: null, mfg, expAssumed: false };
+}
+
 /** OCR 텍스트에서 날짜를 전부 추출하고 EXP/MFG/UNKNOWN으로 분류 (DEV-GUIDE §4-3) */
 export function parseDates(ocrText: string): ParsedDate[] {
   const results: ParsedDate[] = [];
