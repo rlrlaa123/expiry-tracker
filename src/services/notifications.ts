@@ -53,11 +53,20 @@ export async function getNotificationPermissionStatus(): Promise<
   return current.canAskAgain ? 'undetermined' : 'denied';
 }
 
+/** 직렬화 체인 — 동시 호출이 cancel/schedule 순서로 끼어들어 중복 예약되는 것 방지 */
+let rescheduleChain: Promise<void> = Promise.resolve();
+
 /**
  * 다음 1회 묶음 알림 재예약 — 유일한 예약 진입점 (DEV-GUIDE §4-4).
  * 데이터 변경·앱 포그라운드 진입·설정 변경 시마다 호출되어 기존 예약을 전부 대체한다.
+ * 호출이 겹치면 순서대로 실행되어 항상 마지막 호출 결과(예약 1건)만 남는다.
  */
-export async function rescheduleDigest(): Promise<void> {
+export function rescheduleDigest(): Promise<void> {
+  rescheduleChain = rescheduleChain.then(doRescheduleDigest).catch(() => {});
+  return rescheduleChain;
+}
+
+async function doRescheduleDigest(): Promise<void> {
   const notifications = loadNotifications();
   if (!notifications) return;
   try {
