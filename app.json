@@ -33,7 +33,19 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "라벨 사진으로 품목을 등록하기 위해 카메라를 사용해요."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "갤러리의 라벨 사진으로 품목을 등록하기 위해 사용해요."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
