@@ -12,6 +12,7 @@ import { categoryEmoji, formatDot, type EnrichedItem } from '@/features/items/en
 import { archiveItem, openItem, updateItemExp } from '@/features/items/mutations';
 import { useItem } from '@/features/items/useItems';
 import { BottomSheet, SheetOption } from '@/ui/BottomSheet';
+import { hapticLight, hapticSuccess } from '@/ui/haptics';
 import { useToast } from '@/ui/Toast';
 import { colors, radius, spacing } from '@/ui/tokens';
 
@@ -81,6 +82,7 @@ function DetailBody({ entry }: { entry: EnrichedItem }) {
   const [editingExp, setEditingExp] = useState(false);
 
   const handleOpen = async () => {
+    hapticLight();
     const next = await openItem(item.id);
     toast(next ? `개봉 기록됨 · 만료 ${formatDot(next.date)} (${next.basis})` : '개봉 기록됨 · 기한 미설정');
   };
@@ -89,6 +91,7 @@ function DetailBody({ entry }: { entry: EnrichedItem }) {
     if (!confirm) return;
     const status = confirm;
     setConfirm(null);
+    hapticSuccess();
     await archiveItem(item.id, status);
     toast(status === 'consumed' ? '소진 처리됨 · 아카이브로 이동' : '폐기 처리됨 · 아카이브로 이동');
     router.back();

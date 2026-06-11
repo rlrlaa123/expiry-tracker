@@ -106,6 +106,7 @@ export default function SettingsScreen() {
                 onValueChange={(on) => toggleStage(key, on)}
                 trackColor={{ false: '#D7D6CE', true: colors.primary }}
                 thumbColor="#FFFFFF"
+                accessibilityLabel={label}
               />
             </View>
           ))}
