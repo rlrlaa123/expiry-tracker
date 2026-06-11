@@ -1,3 +1,4 @@
+import { requireOptionalNativeModule } from 'expo';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -6,20 +7,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, typography } from '@/ui/tokens';
 
 /**
- * 네이티브 캡처 모듈은 dev build #2부터 포함 — 구 APK에서 홈이 죽지 않도록
- * 라우트 파일 최상위가 아니라 렌더 시점에 require (ADR 008).
+ * 네이티브 캡처 모듈은 구 dev build APK에 없을 수 있다 (ADR 008).
+ * require가 throw하면 Metro가 LogBox 에러를 찍고 모듈 캐시도 오염되므로,
+ * throw 없는 requireOptionalNativeModule로 먼저 존재를 확인한 뒤에만 require한다.
  */
 function loadCaptureModules() {
-  try {
-    return {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- 구 APK 폴백을 위한 의도적 lazy require
-      camera: require('expo-camera') as typeof import('expo-camera'),
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- 구 APK 폴백을 위한 의도적 lazy require
-      picker: require('expo-image-picker') as typeof import('expo-image-picker'),
-    };
-  } catch {
+  if (
+    !requireOptionalNativeModule('ExpoCamera') ||
+    !requireOptionalNativeModule('ExponentImagePicker')
+  ) {
     return null;
   }
+  /* eslint-disable @typescript-eslint/no-require-imports -- 구 APK 폴백을 위한 의도적 lazy require */
+  const camera = require('expo-camera') as typeof import('expo-camera') | undefined;
+  const picker = require('expo-image-picker') as typeof import('expo-image-picker') | undefined;
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  // Metro는 한 번 throw한 모듈을 다음 require에서 undefined로 줄 수 있어 형태까지 확인
+  if (!camera?.CameraView || typeof picker?.launchImageLibraryAsync !== 'function') return null;
+  return { camera, picker };
 }
 
 export default function CameraScreen() {

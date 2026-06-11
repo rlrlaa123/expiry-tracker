@@ -1,4 +1,5 @@
 import { notInArray } from 'drizzle-orm';
+import { requireOptionalNativeModule } from 'expo';
 
 import { db } from '@/db/client';
 import { items } from '@/db/schema';
@@ -7,15 +8,18 @@ import { planNextDigest } from '@/domain/notification-planner';
 import { useSettings } from '@/features/settings/store';
 
 /**
- * expo-notifications는 dev build #3부터 포함 — 구 APK에서 죽지 않도록 lazy require (ADR 008과 동일 패턴).
+ * expo-notifications는 구 dev build APK에 없을 수 있다 (ADR 008).
+ * require가 throw하면 Metro LogBox 소음 + 모듈 캐시 오염이 생기므로,
+ * throw 없는 requireOptionalNativeModule로 먼저 존재를 확인한다.
  */
 function loadNotifications() {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- 구 APK 폴백을 위한 의도적 lazy require
-    return require('expo-notifications') as typeof import('expo-notifications');
-  } catch {
-    return null;
-  }
+  if (!requireOptionalNativeModule('ExpoNotificationScheduler')) return null;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- 구 APK 폴백을 위한 의도적 lazy require
+  // Metro는 한 번 throw한 모듈을 다음 require에서 undefined로 줄 수 있어 형태까지 확인
+  const notifications = require('expo-notifications') as
+    | typeof import('expo-notifications')
+    | undefined;
+  return typeof notifications?.scheduleNotificationAsync === 'function' ? notifications : null;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');

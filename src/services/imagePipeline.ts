@@ -9,9 +9,14 @@ export interface PreparedImage {
 
 /**
  * 원본 사진 → 장변 1024px JPEG 압축 (SPEC §11 — AI 전송·썸네일 겸용).
- * expo-image-manipulator는 dev build #2부터 포함된 네이티브 모듈이라 lazy import (ADR 008).
+ * expo-image-manipulator는 구 dev build APK에 없을 수 있어 throw 없이 존재 확인 후
+ * lazy import (ADR 008). 없으면 던지고 — 호출부가 원본 uri 폴백으로 처리한다.
  */
 export async function prepareImage(uri: string): Promise<PreparedImage> {
+  const { requireOptionalNativeModule } = await import('expo');
+  if (!requireOptionalNativeModule('ExpoImageManipulator')) {
+    throw new Error('image manipulator unavailable in this build');
+  }
   const { ImageManipulator, SaveFormat } = await import('expo-image-manipulator');
   const context = ImageManipulator.manipulate(uri);
   let ref = await context.renderAsync();
