@@ -55,7 +55,8 @@
       "router": {},
       "eas": {
         "projectId": "b26f2037-7cf6-487c-8680-027182296bd1"
-      }
+      },
+      "recognizeUrl": "https://expiry-tracker-proxy.rlrlaa123.workers.dev"
     },
     "owner": "rlrlaa123"
   }

@@ -1,10 +1,17 @@
+import Constants from 'expo-constants';
+
 import { parseAiResponse, type AiRecognition } from '@/domain/aiResponse';
 
 /** 프록시 응답 2초↑ 대비 타임아웃 5초 + 폴백 (DEV-GUIDE M4) */
 const TIMEOUT_MS = 5_000;
 
-/** 배포된 Workers URL — .env의 EXPO_PUBLIC_RECOGNIZE_URL로 주입 (키 아님, 공개 가능) */
-const BASE_URL = process.env.EXPO_PUBLIC_RECOGNIZE_URL;
+/**
+ * 배포된 Workers URL (키 아님, 공개 가능) — 기본값은 app.json extra.recognizeUrl.
+ * 로컬 실험용으로 EXPO_PUBLIC_RECOGNIZE_URL 환경변수가 있으면 그게 우선.
+ */
+const BASE_URL: string | undefined =
+  process.env.EXPO_PUBLIC_RECOGNIZE_URL ??
+  (Constants.expoConfig?.extra?.recognizeUrl as string | undefined);
 
 export interface AiRequestInput {
   imageBase64: string;
