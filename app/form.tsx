@@ -369,7 +369,11 @@ export default function FormScreen() {
               <Text style={styles.toggleLabel}>이미 개봉했어요</Text>
               <Switch
                 value={isOpened}
-                onValueChange={setIsOpened}
+                onValueChange={(on) => {
+                  setIsOpened(on);
+                  // 켜는 시점의 오늘로 — 폼을 오래 열어둔 채(자정 경과) 토글해도 정확
+                  if (on) setOpenedText(formatDot(todayIso()));
+                }}
                 trackColor={{ false: '#D7D6CE', true: colors.primary }}
                 thumbColor="#FFFFFF"
                 accessibilityLabel="이미 개봉했어요"

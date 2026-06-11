@@ -49,6 +49,7 @@ export function ItemRow({
       {expired ? (
         <Pressable
           onPress={onHandle}
+          hitSlop={8}
           style={({ pressed }) => [styles.act, styles.actDanger, pressed && styles.pressed]}
           accessibilityRole="button"
           accessibilityLabel={`${item.name} 만료 처리`}
@@ -58,6 +59,7 @@ export function ItemRow({
       ) : !item.openedAt ? (
         <Pressable
           onPress={onOpen}
+          hitSlop={8}
           style={({ pressed }) => [styles.act, pressed && styles.pressed]}
           accessibilityRole="button"
           accessibilityLabel={`${item.name} 개봉`}
