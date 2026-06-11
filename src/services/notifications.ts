@@ -14,8 +14,8 @@ import { useSettings } from '@/features/settings/store';
  */
 function loadNotifications() {
   if (!requireOptionalNativeModule('ExpoNotificationScheduler')) return null;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- 구 APK 폴백을 위한 의도적 lazy require
   // Metro는 한 번 throw한 모듈을 다음 require에서 undefined로 줄 수 있어 형태까지 확인
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- 구 APK 폴백을 위한 의도적 lazy require
   const notifications = require('expo-notifications') as
     | typeof import('expo-notifications')
     | undefined;
