@@ -1,0 +1,12 @@
+# 유통기한 트래커 AI 인식 프록시 — 데이터 미저장, 키는 wrangler secret으로만 주입
+name = "expiry-tracker-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+
+# device_id 기반 rate limit 카운터 (분5/일50) — 내용 저장 없음
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "c00d1a9e20f04124b7177f51841c3f4e"
+
+[vars]
+GEMINI_MODEL = "gemini-2.5-flash-lite"

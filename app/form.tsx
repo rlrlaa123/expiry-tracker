@@ -45,7 +45,9 @@ export default function FormScreen() {
   const [recognizing, setRecognizing] = useState(!!photoUri);
 
   const [name, setName] = useState('');
+  const [nameLow, setNameLow] = useState(false);
   const [brand, setBrand] = useState('');
+  const [brandLow, setBrandLow] = useState(false);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [baseDateText, setBaseDateText] = useState('');
   const [baseAssumed, setBaseAssumed] = useState(false);
@@ -60,11 +62,11 @@ export default function FormScreen() {
   const [memo, setMemo] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // 사진 인식 — 결과가 오면 비어 있는 필드만 채운다 (사용자 입력 우선)
+  // 사진 인식 — 결과가 오면 비어 있는 필드만 채운다 (사용자 입력 우선, low는 노란 테두리)
   useEffect(() => {
     if (!photoUri) return;
     let cancelled = false;
-    recognizeCapture(photoUri).then((r) => {
+    recognizeCapture(photoUri).then(async (r) => {
       if (cancelled) return;
       setRecog(r);
       setRecognizing(false);
@@ -81,6 +83,20 @@ export default function FormScreen() {
         }
         return prev;
       });
+      if (r.productName) {
+        setName((prev) => prev || r.productName!);
+        if (r.confidence?.productName === 'low') setNameLow(true);
+      }
+      if (r.brand) {
+        setBrand((prev) => prev || r.brand!);
+        if (r.confidence?.brand === 'low') setBrandLow(true);
+      }
+      if (r.categoryName) {
+        const matched = (await db.select().from(categories)).find(
+          (c) => c.name === r.categoryName,
+        );
+        if (matched && !cancelled) setCategoryId((prev) => prev ?? matched.id);
+      }
     });
     return () => {
       cancelled = true;
@@ -111,13 +127,18 @@ export default function FormScreen() {
 
   const showPaoBanner = !expiry && !!category?.paoMonths;
 
+  // 목업 3상태: 인식 성공 / 일부만 인식 / 인식 실패
+  const recognizedAnything =
+    !!recog && (recog.productName !== null || recog.categoryName !== null || !!parsedBase);
   const thumbTitle = recognizing
     ? '사진 인식 중…'
     : !photoUri
       ? '사진 없음'
-      : parsedBase
-        ? '기한을 인식했어요'
-        : '기한을 찾지 못했어요 — 직접 입력해 주세요';
+      : recog?.productName && parsedBase
+        ? '사진 인식 완료'
+        : recognizedAnything
+          ? '일부만 인식했어요'
+          : '인식하지 못했어요';
 
   const locations = useMemo(() => {
     const all = [...BASE_LOCATIONS, ...extraLocations];
@@ -231,23 +252,35 @@ export default function FormScreen() {
             품목명 <Text style={styles.req}>*</Text>
           </Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, nameLow && styles.inputWarn]}
             value={name}
-            onChangeText={setName}
+            onChangeText={(t) => {
+              setName(t);
+              setNameLow(false);
+            }}
             placeholder="예: 선크림"
             placeholderTextColor={colors.muted}
           />
+          {nameLow ? (
+            <Text style={styles.confidenceNote}>인식 신뢰도가 낮아요 — 확인해 주세요</Text>
+          ) : null}
         </View>
 
         <View style={styles.field}>
           <Text style={styles.label}>브랜드</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, brandLow && styles.inputWarn]}
             value={brand}
-            onChangeText={setBrand}
+            onChangeText={(t) => {
+              setBrand(t);
+              setBrandLow(false);
+            }}
             placeholder="선택 입력"
             placeholderTextColor={colors.muted}
           />
+          {brandLow ? (
+            <Text style={styles.confidenceNote}>인식 신뢰도가 낮아요 — 확인해 주세요</Text>
+          ) : null}
         </View>
 
         {/* 카테고리 칩 */}
@@ -356,6 +389,9 @@ export default function FormScreen() {
               </Text>
             </View>
           </View>
+          {dday !== null && dday < 0 ? (
+            <Text style={styles.expiredNote}>이미 만료된 제품이에요</Text>
+          ) : null}
         </View>
 
         {/* 보관 위치 */}
@@ -689,6 +725,11 @@ const styles = StyleSheet.create({
   },
   ddayTextEmpty: {
     color: '#8A8E85',
+  },
+  expiredNote: {
+    fontSize: 12,
+    color: colors.danger,
+    marginTop: -4,
   },
   memoToggle: {
     fontSize: 13.5,
