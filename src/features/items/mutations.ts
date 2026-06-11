@@ -4,6 +4,7 @@ import { db } from '@/db/client';
 import { categories, items, type Category, type Item, type NewItem } from '@/db/schema';
 import { todayIso, type IsoDate } from '@/domain/date';
 import { computeExpiry, extendExpiry, type ComputedExpiry } from '@/domain/expiry';
+import { rescheduleDigest } from '@/services/notifications';
 
 async function loadRow(id: string): Promise<{ item: Item; category: Category | null } | null> {
   const rows = await db
@@ -41,6 +42,8 @@ async function patchAndRecompute(
       updatedAt: todayIso(),
     })
     .where(eq(items.id, id));
+  // 데이터 변경 시마다 다음 묶음 알림 재예약 (DEV-GUIDE §4-4)
+  void rescheduleDigest();
   return expiry;
 }
 
@@ -103,5 +106,6 @@ export async function createItem(
     createdAt: today,
     updatedAt: today,
   });
+  void rescheduleDigest();
   return { id, expiry };
 }
