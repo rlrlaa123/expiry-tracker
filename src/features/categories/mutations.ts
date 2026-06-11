@@ -67,11 +67,14 @@ export async function addCategory(
 export async function deleteCategory(id: string): Promise<void> {
   const cat = (await db.select().from(categories).where(eq(categories.id, id)))[0];
   if (!cat || cat.builtin) return;
-  await db
-    .update(items)
-    .set({ categoryId: FALLBACK_CATEGORY_ID, updatedAt: todayIso() })
-    .where(eq(items.categoryId, id));
-  await db.delete(categories).where(eq(categories.id, id));
+  // 이동+삭제는 원자적으로 — 중간 실패 시 품목만 이동된 반쪽 상태 방지 (동기 드라이버라 .run())
+  db.transaction((tx) => {
+    tx.update(items)
+      .set({ categoryId: FALLBACK_CATEGORY_ID, updatedAt: todayIso() })
+      .where(eq(items.categoryId, id))
+      .run();
+    tx.delete(categories).where(eq(categories.id, id)).run();
+  });
   await recomputeItemsForCategory(FALLBACK_CATEGORY_ID);
   void rescheduleDigest();
 }

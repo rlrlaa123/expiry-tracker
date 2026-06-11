@@ -23,8 +23,9 @@ interface Candidate {
 /** 우선순위 순서 — 긴 패턴 먼저 매칭해 부분 중복 방지 */
 const PATTERNS: { regex: RegExp; build: (m: RegExpExecArray) => IsoDate | null }[] = [
   // YYYY.MM.DD / YYYY-MM-DD / YYYY/MM/DD / YYYY년 MM월 DD일
+  // 뒤에 숫자(또는 구분자+숫자)가 이어지면 로트번호('2025.06.30.01')이므로 제외
   {
-    regex: /(20\d{2})\s?[.\-/년]\s?(\d{1,2})\s?[.\-/월]\s?(\d{1,2})일?/g,
+    regex: /(20\d{2})\s?[.\-/년]\s?(\d{1,2})\s?[.\-/월]\s?(\d{1,2})일?(?!\d)(?![.\-/]\d)/g,
     build: (m) => fullDate(+m[1], +m[2], +m[3]),
   },
   // YYYYMMDD (연속 8자리, 앞뒤에 숫자 없음)
@@ -32,9 +33,9 @@ const PATTERNS: { regex: RegExp; build: (m: RegExpExecArray) => IsoDate | null }
     regex: /(?<!\d)(20\d{2})(\d{2})(\d{2})(?!\d)/g,
     build: (m) => fullDate(+m[1], +m[2], +m[3]),
   },
-  // YY.MM.DD (2000년대 가정)
+  // YY.MM.DD (2000년대 가정) — 로트번호('25.06.30.99') 가드 포함
   {
-    regex: /(?<!\d)(\d{2})\s?[.\-/]\s?(\d{1,2})\s?[.\-/]\s?(\d{1,2})(?!\d)/g,
+    regex: /(?<!\d)(\d{2})\s?[.\-/]\s?(\d{1,2})\s?[.\-/]\s?(\d{1,2})(?!\d)(?![.\-/]\d)/g,
     build: (m) => fullDate(2000 + +m[1], +m[2], +m[3]),
   },
   // YYYY.MM / YYYY-MM / YYYY년 MM월 → 해당 월 말일

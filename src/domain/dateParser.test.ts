@@ -100,6 +100,20 @@ describe('parseDates — 실제 라벨 샘플', () => {
       { type: 'EXP', value: '2026-08-15', raw: '2026.08.15' },
     ]);
   });
+
+  it('18. 점으로 이어지는 로트번호는 날짜로 오인하지 않음', () => {
+    expect(parseDates('LOT 25.06.30.99')).toEqual([]);
+    expect(parseDates('LOT 2025.06.30.01')).toEqual([]);
+  });
+
+  it('19. 날짜 뒤 문장부호·조사는 그대로 인식', () => {
+    expect(parseDates('25.06.30까지')).toEqual([
+      { type: 'EXP', value: '2025-06-30', raw: '25.06.30' },
+    ]);
+    expect(parseDates('유통기한 2025.06.30.')).toEqual([
+      { type: 'EXP', value: '2025-06-30', raw: '2025.06.30' },
+    ]);
+  });
 });
 
 describe('adoptDates — 파싱 결과 채택 (SPEC §11 후처리)', () => {
