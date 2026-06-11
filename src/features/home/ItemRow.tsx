@@ -12,8 +12,21 @@ function metaLine({ item, expiry }: EnrichedItem): string {
   return item.location ? `${item.location} · ${detail}` : detail;
 }
 
-export function ItemRow({ entry, onPress }: { entry: EnrichedItem; onPress: () => void }) {
-  const { item, badge } = entry;
+export function ItemRow({
+  entry,
+  onPress,
+  onOpen,
+  onHandle,
+}: {
+  entry: EnrichedItem;
+  onPress: () => void;
+  /** 행 내 원탭 개봉 (미개봉 품목) */
+  onOpen: () => void;
+  /** 만료 품목 처리 시트 열기 */
+  onHandle: () => void;
+}) {
+  const { item, badge, dday } = entry;
+  const expired = dday !== null && dday < 0;
   return (
     <Pressable
       onPress={onPress}
@@ -33,6 +46,25 @@ export function ItemRow({ entry, onPress }: { entry: EnrichedItem; onPress: () =
         </Text>
       </View>
       <Badge level={badge.level} label={badge.label} />
+      {expired ? (
+        <Pressable
+          onPress={onHandle}
+          style={({ pressed }) => [styles.act, styles.actDanger, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.name} 만료 처리`}
+        >
+          <Text style={[styles.actLabel, styles.actLabelDanger]}>처리</Text>
+        </Pressable>
+      ) : !item.openedAt ? (
+        <Pressable
+          onPress={onOpen}
+          style={({ pressed }) => [styles.act, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.name} 개봉`}
+        >
+          <Text style={styles.actLabel}>개봉</Text>
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -77,5 +109,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.muted,
     marginTop: 3,
+  },
+  act: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+  },
+  actDanger: {
+    borderColor: colors.danger,
+  },
+  actLabel: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  actLabelDanger: {
+    color: colors.danger,
   },
 });

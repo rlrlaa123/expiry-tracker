@@ -5,21 +5,50 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { distinctLocations, filterEntries, type HomeFilter } from '@/features/home/filter';
 import { FilterChips } from '@/features/home/FilterChips';
+import { HandleExpiredSheet } from '@/features/home/HandleExpiredSheet';
 import { ItemRow } from '@/features/home/ItemRow';
 import { Top5 } from '@/features/home/Top5';
+import { formatDot, type EnrichedItem } from '@/features/items/enrich';
+import { archiveItem, extendItemExpiry, openItem } from '@/features/items/mutations';
 import { useActiveItems } from '@/features/items/useItems';
+import { useToast } from '@/ui/Toast';
 import { colors, spacing, typography } from '@/ui/tokens';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const toast = useToast();
   const entries = useActiveItems();
   const [filter, setFilter] = useState<HomeFilter>({ kind: 'all' });
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [handleTarget, setHandleTarget] = useState<EnrichedItem | null>(null);
 
   const locations = useMemo(() => distinctLocations(entries), [entries]);
   const rows = useMemo(() => filterEntries(entries, filter, query), [entries, filter, query]);
   const goDetail = (id: string) => router.push(`/item/${id}`);
+
+  const handleOpen = async (entry: EnrichedItem) => {
+    const expiry = await openItem(entry.item.id);
+    toast(expiry ? `개봉 기록됨 · 만료 ${formatDot(expiry.date)}` : '개봉 기록됨 · 기한 미설정');
+  };
+
+  const closeSheet = () => setHandleTarget(null);
+  const handleDiscard = async () => {
+    if (!handleTarget) return;
+    closeSheet();
+    await archiveItem(handleTarget.item.id, 'discarded');
+    toast('아카이브로 이동했어요');
+  };
+  const handleKeep = () => {
+    closeSheet();
+    toast('목록에 남겨둘게요');
+  };
+  const handleExtend = async () => {
+    if (!handleTarget) return;
+    closeSheet();
+    const expiry = await extendItemExpiry(handleTarget.item.id);
+    if (expiry) toast(`기한 연장됨 · ${formatDot(expiry.date)}`);
+  };
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -63,18 +92,32 @@ export default function HomeScreen() {
           </>
         }
         renderItem={({ item: entry }) => (
-          <ItemRow entry={entry} onPress={() => goDetail(entry.item.id)} />
+          <ItemRow
+            entry={entry}
+            onPress={() => goDetail(entry.item.id)}
+            onOpen={() => handleOpen(entry)}
+            onHandle={() => setHandleTarget(entry)}
+          />
         )}
         ListEmptyComponent={<Text style={styles.empty}>조건에 맞는 품목이 없어요</Text>}
       />
 
       <Pressable
+        onPress={() => toast('카메라 등록은 M3에서 열려요')}
         style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
         accessibilityRole="button"
         accessibilityLabel="품목 등록 (카메라)"
       >
         <Text style={styles.fabIcon}>📷</Text>
       </Pressable>
+
+      <HandleExpiredSheet
+        target={handleTarget}
+        onClose={closeSheet}
+        onDiscard={handleDiscard}
+        onKeep={handleKeep}
+        onExtend={handleExtend}
+      />
     </SafeAreaView>
   );
 }
