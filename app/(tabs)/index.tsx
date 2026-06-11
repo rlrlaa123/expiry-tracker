@@ -11,6 +11,7 @@ import { Top5 } from '@/features/home/Top5';
 import { formatDot, type EnrichedItem } from '@/features/items/enrich';
 import { archiveItem, extendItemExpiry, openItem } from '@/features/items/mutations';
 import { useActiveItems } from '@/features/items/useItems';
+import { hapticLight, hapticSuccess } from '@/ui/haptics';
 import { useToast } from '@/ui/Toast';
 import { colors, spacing, typography } from '@/ui/tokens';
 
@@ -41,6 +42,7 @@ export default function HomeScreen() {
   const goDetail = (id: string) => router.push(`/item/${id}`);
 
   const handleOpen = async (entry: EnrichedItem) => {
+    hapticLight();
     const expiry = await openItem(entry.item.id);
     toast(expiry ? `개봉 기록됨 · 만료 ${formatDot(expiry.date)}` : '개봉 기록됨 · 기한 미설정');
   };
@@ -49,6 +51,7 @@ export default function HomeScreen() {
   const handleDiscard = async () => {
     if (!handleTarget) return;
     closeSheet();
+    hapticSuccess();
     await archiveItem(handleTarget.item.id, 'discarded');
     toast('아카이브로 이동했어요');
   };
@@ -112,7 +115,15 @@ export default function HomeScreen() {
             onHandle={() => setHandleTarget(entry)}
           />
         )}
-        ListEmptyComponent={<Text style={styles.empty}>조건에 맞는 품목이 없어요</Text>}
+        ListEmptyComponent={
+          <Text style={styles.empty}>
+            {entries.length === 0
+              ? '아직 등록한 물건이 없어요\n오른쪽 아래 카메라 버튼으로 첫 물건을 등록해 보세요'
+              : query.trim()
+                ? `'${query.trim()}' 검색 결과가 없어요`
+                : '조건에 맞는 품목이 없어요'}
+          </Text>
+        }
       />
 
       <Pressable
@@ -179,6 +190,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: colors.muted,
     fontSize: 13.5,
+    lineHeight: 21,
     paddingVertical: 34,
   },
   fab: {

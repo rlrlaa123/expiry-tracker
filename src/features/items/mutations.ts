@@ -109,3 +109,27 @@ export async function createItem(
   void rescheduleDigest();
   return { id, expiry };
 }
+
+/**
+ * 아카이브 "다시 샀어요" — 기존 정보를 복사한 새 품목을 홈에 등록 (SPEC §6).
+ * 기한만 새로 받는다(나중에 입력 = null). 원본 이력은 아카이브에 보존.
+ */
+export async function rebuyItem(
+  sourceId: string,
+  exp: IsoDate | null,
+): Promise<{ id: string; expiry: ComputedExpiry | null } | null> {
+  const row = await loadRow(sourceId);
+  if (!row) return null;
+  const src = row.item;
+  return createItem({
+    name: src.name,
+    brand: src.brand,
+    categoryId: src.categoryId,
+    thumbnailUri: src.thumbnailUri,
+    exp,
+    mfg: null,
+    openedAt: null,
+    location: src.location,
+    memo: null,
+  });
+}

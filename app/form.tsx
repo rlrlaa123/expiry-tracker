@@ -24,6 +24,7 @@ import { createItem } from '@/features/items/mutations';
 import { recognizeCapture, type CaptureRecognition } from '@/services/recognize';
 import { persistThumbnail } from '@/services/thumbnails';
 import { BottomSheet, SheetOption } from '@/ui/BottomSheet';
+import { hapticSuccess } from '@/ui/haptics';
 import { useToast } from '@/ui/Toast';
 import { colors, radius, spacing } from '@/ui/tokens';
 
@@ -170,6 +171,7 @@ export default function FormScreen() {
       const d = calcDday(saved?.date ?? null, todayIso());
       const label =
         d === null ? '저장됨 · 기한 미설정' : d >= 0 ? `저장됨 · D-${d}` : `저장됨 · D+${-d}`;
+      hapticSuccess();
       router.dismissTo('/(tabs)');
       toast(label, { label: '하나 더 찍기', onPress: () => router.push('/camera') });
     } finally {
@@ -348,6 +350,7 @@ export default function FormScreen() {
               onValueChange={setIsMfg}
               trackColor={{ false: '#D7D6CE', true: colors.primary }}
               thumbColor="#FFFFFF"
+              accessibilityLabel="표기가 제조일이에요"
             />
           </View>
 
@@ -358,6 +361,7 @@ export default function FormScreen() {
               onValueChange={setIsOpened}
               trackColor={{ false: '#D7D6CE', true: colors.primary }}
               thumbColor="#FFFFFF"
+              accessibilityLabel="이미 개봉했어요"
             />
           </View>
           {isOpened ? (
