@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { badge, computeExpiry, dday, type CategoryDefaults } from './expiry';
+import {
+  badge,
+  computeExpiry,
+  dday,
+  extendExpiry,
+  lifeProgress,
+  type CategoryDefaults,
+} from './expiry';
 
 const sunscreen: CategoryDefaults = { paoMonths: 12, shelfLifeMonths: 36 };
 const noDefaults: CategoryDefaults = { paoMonths: null, shelfLifeMonths: null };
@@ -119,5 +126,58 @@ describe('badge', () => {
 
   it('null → 기한 미설정', () => {
     expect(badge(null)).toEqual({ level: 'none', label: '기한 미설정' });
+  });
+});
+
+describe('lifeProgress', () => {
+  it('구간 정중앙이면 50%', () => {
+    expect(lifeProgress('2026-01-01', '2026-01-11', '2026-01-06')).toBe(50);
+  });
+
+  it('시작일 당일은 0%, 만료일 당일은 100%', () => {
+    expect(lifeProgress('2026-01-01', '2026-01-11', '2026-01-01')).toBe(0);
+    expect(lifeProgress('2026-01-01', '2026-01-11', '2026-01-11')).toBe(100);
+  });
+
+  it('시작 전이면 0%로, 만료 후면 100%로 클램프', () => {
+    expect(lifeProgress('2026-01-01', '2026-01-11', '2025-12-25')).toBe(0);
+    expect(lifeProgress('2026-01-01', '2026-01-11', '2026-02-01')).toBe(100);
+  });
+
+  it('정수로 반올림', () => {
+    // 3일 중 1일 경과 = 33.33…%
+    expect(lifeProgress('2026-01-01', '2026-01-04', '2026-01-02')).toBe(33);
+  });
+
+  it('만료일이 시작일과 같거나 이르면(이미 만료된 채 등록) 경과 시 100%, 이전엔 0%', () => {
+    expect(lifeProgress('2026-01-01', '2026-01-01', '2026-01-01')).toBe(100);
+    expect(lifeProgress('2026-01-05', '2026-01-01', '2026-01-06')).toBe(100);
+    expect(lifeProgress('2026-01-05', '2026-01-01', '2025-12-01')).toBe(0);
+  });
+});
+
+describe('extendExpiry', () => {
+  it('계산된 만료일 +30일을 새 유통기한으로, PAO는 무력화(0)', () => {
+    expect(extendExpiry('2026-06-05', '2026-06-11')).toEqual({
+      exp: '2026-07-05',
+      paoMonthsOverride: 0,
+    });
+  });
+
+  it('만료일이 없으면 오늘 기준 +30일', () => {
+    expect(extendExpiry(null, '2026-06-11')).toEqual({
+      exp: '2026-07-11',
+      paoMonthsOverride: 0,
+    });
+  });
+
+  it('연장 결과는 computeExpiry에서 그대로 채택된다 (개봉일이 있어도)', () => {
+    const patch = extendExpiry('2026-06-05', '2026-06-11');
+    expect(
+      computeExpiry(
+        item({ exp: patch.exp, openedAt: '2026-04-01', paoMonthsOverride: patch.paoMonthsOverride }),
+        { paoMonths: 1, shelfLifeMonths: null },
+      ),
+    ).toEqual({ date: '2026-07-05', basis: '유통기한 기준' });
   });
 });
