@@ -1,43 +1,38 @@
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { db } from '@/db/client';
-import { categories } from '@/db/schema';
-import { colors, radius, spacing, typography } from '@/ui/tokens';
+import { ItemRow } from '@/features/home/ItemRow';
+import { useActiveItems } from '@/features/items/useItems';
+import { colors, spacing, typography } from '@/ui/tokens';
 
-/**
- * M1 임시 홈 — 시드된 카테고리를 표시해 DB 파이프라인을 검증한다.
- * M2에서 품목 리스트(임박순, Top5, 뱃지)로 교체 예정.
- */
 export default function HomeScreen() {
-  const { data: cats } = useLiveQuery(db.select().from(categories));
+  const router = useRouter();
+  const entries = useActiveItems();
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.appbar}>
-        <Text style={styles.title}>유통기한</Text>
+        <Text style={styles.title}>우리집 물건</Text>
       </View>
-      <Text style={styles.sectionLabel}>기본 카테고리 (M1 시드 확인용)</Text>
+
       <FlatList
-        data={cats ?? []}
-        keyExtractor={(c) => c.id}
+        data={entries}
+        keyExtractor={(e) => e.item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item: cat }) => (
-          <View style={styles.card}>
-            <Text style={styles.catName}>{cat.name}</Text>
-            <Text style={styles.catMeta}>
-              {cat.paoMonths ? `개봉 후 ${cat.paoMonths}개월` : 'PAO 미설정'}
-              {cat.shelfLifeMonths ? ` · 보존 ${cat.shelfLifeMonths}개월` : ''}
-            </Text>
-          </View>
+        renderItem={({ item: entry }) => (
+          <ItemRow entry={entry} onPress={() => router.push(`/item/${entry.item.id}`)} />
         )}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyHint}>카테고리를 불러오는 중…</Text>
-          </View>
-        }
+        ListEmptyComponent={<Text style={styles.empty}>조건에 맞는 품목이 없어요</Text>}
       />
+
+      <Pressable
+        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+        accessibilityRole="button"
+        accessibilityLabel="품목 등록 (카메라)"
+      >
+        <Text style={styles.fabIcon}>📷</Text>
+      </Pressable>
     </SafeAreaView>
   );
 }
@@ -48,6 +43,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
   },
   appbar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xs,
@@ -57,40 +55,37 @@ const styles = StyleSheet.create({
     color: colors.ink,
     letterSpacing: -0.4,
   },
-  sectionLabel: {
-    ...typography.caption,
-    color: colors.muted,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
-  },
   listContent: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-    paddingBottom: spacing.xxl,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.xs,
-  },
-  catName: {
-    ...typography.heading,
-    color: colors.ink,
-  },
-  catMeta: {
-    ...typography.caption,
-    color: colors.muted,
+    paddingHorizontal: 18,
+    paddingTop: spacing.sm,
+    paddingBottom: 110,
   },
   empty: {
-    paddingTop: spacing.xxl,
-    alignItems: 'center',
-  },
-  emptyHint: {
-    ...typography.caption,
+    textAlign: 'center',
     color: colors.muted,
+    fontSize: 13.5,
+    paddingVertical: 34,
+  },
+  fab: {
+    position: 'absolute',
+    right: spacing.xl,
+    bottom: spacing.xl,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.45,
+    shadowRadius: 11,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  fabPressed: {
+    opacity: 0.85,
+  },
+  fabIcon: {
+    fontSize: 24,
   },
 });

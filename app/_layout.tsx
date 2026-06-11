@@ -5,8 +5,10 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { db } from '@/db/client';
+import { seedDevItems } from '@/db/devSeed';
 import migrations from '@/db/migrations/migrations';
 import { seedCategories } from '@/db/seed';
+import { ToastProvider } from '@/ui/Toast';
 import { colors, spacing, typography } from '@/ui/tokens';
 
 export default function RootLayout() {
@@ -16,6 +18,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (!success) return;
     seedCategories(db)
+      .then(() => seedDevItems(db))
       .then(() => setSeeded(true))
       .catch((e) => console.error('seed failed', e));
   }, [success]);
@@ -35,7 +38,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <ToastProvider>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
@@ -43,7 +46,7 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.canvas },
         }}
       />
-    </>
+    </ToastProvider>
   );
 }
 

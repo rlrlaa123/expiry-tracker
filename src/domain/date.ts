@@ -30,6 +30,12 @@ export function addDays(date: IsoDate, days: number): IsoDate {
   return toIso(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate());
 }
 
+/** 디바이스 시계 기준 오늘 (로컬 타임존). 도메인 계산 함수에는 항상 인자로 주입할 것 */
+export function todayIso(): IsoDate {
+  const now = new Date();
+  return toIso(now.getFullYear(), now.getMonth() + 1, now.getDate());
+}
+
 /** a - b (일 단위) */
 export function diffDays(a: IsoDate, b: IsoDate): number {
   const pa = parseIso(a);
