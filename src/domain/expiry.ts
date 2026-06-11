@@ -1,4 +1,4 @@
-import { addMonthsClamped, diffDays, type IsoDate } from './date';
+import { addDays, addMonthsClamped, diffDays, type IsoDate } from './date';
 
 /** 만료일 계산에 필요한 품목 측 입력 (DEV-GUIDE §4-1) */
 export interface ExpirySource {
@@ -64,6 +64,30 @@ export interface BadgeInfo {
   level: BadgeLevel;
   /** 목업 표기: 만료 D+N / 임박 D-N / 미설정 '기한 미설정' */
   label: string;
+}
+
+/**
+ * 수명 진행바 % (0~100 정수) — 상세 화면의 (개봉일 또는 등록일) → 만료일 구간에서 오늘의 위치.
+ * 구간이 퇴화(end ≤ start)했으면 경과 여부만 본다 — 이미 만료된 채 등록된 품목.
+ */
+export function lifeProgress(start: IsoDate, end: IsoDate, today: IsoDate): number {
+  const span = diffDays(end, start);
+  if (span <= 0) return diffDays(today, end) >= 0 ? 100 : 0;
+  const elapsed = diffDays(today, start);
+  return Math.round(Math.min(100, Math.max(0, (elapsed / span) * 100)));
+}
+
+/**
+ * 만료 처리 시트의 '기한 연장' — 사용자가 직접 상태를 확인했으므로
+ * 현재 만료일(없으면 오늘)에서 +days를 새 유통기한으로 삼고, PAO를 무력화(0)해
+ * 개봉일 경로가 연장을 다시 앞당기지 않게 한다. 개봉일 기록 자체는 보존.
+ */
+export function extendExpiry(
+  currentExpiry: IsoDate | null,
+  today: IsoDate,
+  days = 30,
+): { exp: IsoDate; paoMonthsOverride: 0 } {
+  return { exp: addDays(currentExpiry ?? today, days), paoMonthsOverride: 0 };
 }
 
 export function badge(dday: number | null): BadgeInfo {
