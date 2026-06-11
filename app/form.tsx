@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -99,9 +100,7 @@ export default function FormScreen() {
         if (r.confidence?.brand === 'low') setBrandLow(true);
       }
       if (r.categoryName) {
-        const matched = (await db.select().from(categories)).find(
-          (c) => c.name === r.categoryName,
-        );
+        const matched = (await db.select().from(categories)).find((c) => c.name === r.categoryName);
         if (matched && !cancelled) setCategoryId((prev) => prev ?? matched.id);
       }
     });
@@ -205,249 +204,262 @@ export default function FormScreen() {
         </Pressable>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.sheet}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 썸네일 + 인식 상태 */}
-        <View style={styles.thumbRow}>
-          <Pressable
-            onPress={() => router.replace('/camera')}
-            style={styles.thumb}
-            accessibilityRole="button"
-            accessibilityLabel="다시 찍기"
-          >
-            {recog?.thumbnailUri || photoUri ? (
-              <Image
-                source={{ uri: recog?.thumbnailUri ?? photoUri }}
-                style={styles.thumbImage}
-                contentFit="cover"
-              />
-            ) : (
-              <Text style={styles.thumbEmoji}>📦</Text>
-            )}
-          </Pressable>
-          <View style={styles.thumbHint}>
-            <Text style={styles.thumbTitle}>{thumbTitle}</Text>
-            <Text style={styles.thumbSub}>탭하면 다시 찍어요</Text>
+      {/* edge-to-edge Android에서 adjustResize 미동작 — 키보드 높이만큼 패딩해 입력 가림 방지 */}
+      <KeyboardAvoidingView behavior="padding" style={styles.kav}>
+        <ScrollView
+          contentContainerStyle={styles.sheet}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* 썸네일 + 인식 상태 */}
+          <View style={styles.thumbRow}>
+            <Pressable
+              onPress={() => router.replace('/camera')}
+              style={styles.thumb}
+              accessibilityRole="button"
+              accessibilityLabel="다시 찍기"
+            >
+              {recog?.thumbnailUri || photoUri ? (
+                <Image
+                  source={{ uri: recog?.thumbnailUri ?? photoUri }}
+                  style={styles.thumbImage}
+                  contentFit="cover"
+                />
+              ) : (
+                <Text style={styles.thumbEmoji}>📦</Text>
+              )}
+            </Pressable>
+            <View style={styles.thumbHint}>
+              <Text style={styles.thumbTitle}>{thumbTitle}</Text>
+              <Text style={styles.thumbSub}>탭하면 다시 찍어요</Text>
+            </View>
           </View>
-        </View>
 
-        {/* PAO 제안 배너 (부분 성공) */}
-        {showPaoBanner && category?.paoMonths ? (
-          <View style={styles.paoBanner}>
-            <Text style={styles.paoText}>
-              {category.name}은(는) 보통{' '}
-              <Text style={styles.paoBold}>개봉 후 {category.paoMonths}개월</Text>이에요
+          {/* PAO 제안 배너 (부분 성공) */}
+          {showPaoBanner && category?.paoMonths ? (
+            <View style={styles.paoBanner}>
+              <Text style={styles.paoText}>
+                {category.name}은(는) 보통{' '}
+                <Text style={styles.paoBold}>개봉 후 {category.paoMonths}개월</Text>이에요
+              </Text>
+              <Pressable
+                onPress={() => {
+                  setIsOpened(true);
+                  setOpenedText(formatDot(todayIso()));
+                }}
+                style={styles.paoApply}
+                accessibilityRole="button"
+              >
+                <Text style={styles.paoApplyLabel}>적용</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {/* 품목명 (유일한 필수 입력) */}
+          <View style={styles.field}>
+            <Text style={styles.label}>
+              품목명 <Text style={styles.req}>*</Text>
             </Text>
-            <Pressable
-              onPress={() => {
-                setIsOpened(true);
-                setOpenedText(formatDot(todayIso()));
+            <TextInput
+              style={[styles.input, nameLow && styles.inputWarn]}
+              value={name}
+              onChangeText={(t) => {
+                setName(t);
+                setNameLow(false);
               }}
-              style={styles.paoApply}
-              accessibilityRole="button"
-            >
-              <Text style={styles.paoApplyLabel}>적용</Text>
-            </Pressable>
+              placeholder="예: 선크림"
+              placeholderTextColor={colors.muted}
+            />
+            {nameLow ? (
+              <Text style={styles.confidenceNote}>인식 신뢰도가 낮아요 — 확인해 주세요</Text>
+            ) : null}
           </View>
-        ) : null}
-
-        {/* 품목명 (유일한 필수 입력) */}
-        <View style={styles.field}>
-          <Text style={styles.label}>
-            품목명 <Text style={styles.req}>*</Text>
-          </Text>
-          <TextInput
-            style={[styles.input, nameLow && styles.inputWarn]}
-            value={name}
-            onChangeText={(t) => {
-              setName(t);
-              setNameLow(false);
-            }}
-            placeholder="예: 선크림"
-            placeholderTextColor={colors.muted}
-          />
-          {nameLow ? (
-            <Text style={styles.confidenceNote}>인식 신뢰도가 낮아요 — 확인해 주세요</Text>
-          ) : null}
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>브랜드</Text>
-          <TextInput
-            style={[styles.input, brandLow && styles.inputWarn]}
-            value={brand}
-            onChangeText={(t) => {
-              setBrand(t);
-              setBrandLow(false);
-            }}
-            placeholder="선택 입력"
-            placeholderTextColor={colors.muted}
-          />
-          {brandLow ? (
-            <Text style={styles.confidenceNote}>인식 신뢰도가 낮아요 — 확인해 주세요</Text>
-          ) : null}
-        </View>
-
-        {/* 카테고리 칩 */}
-        <View style={styles.field}>
-          <Text style={styles.label}>카테고리</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            {(cats ?? []).map((c) => {
-              const on = c.id === categoryId;
-              return (
-                <Pressable
-                  key={c.id}
-                  onPress={() => setCategoryId(on ? null : c.id)}
-                  style={[styles.chip, on && styles.chipOn]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                >
-                  <Text style={[styles.chipLabel, on && styles.chipLabelOn]}>{c.name}</Text>
-                </Pressable>
-              );
-            })}
-            <Pressable
-              onPress={() => setAddingCategory(true)}
-              style={styles.chip}
-              accessibilityRole="button"
-              accessibilityLabel="카테고리 추가"
-            >
-              <Text style={[styles.chipLabel, styles.chipAdd]}>＋</Text>
-            </Pressable>
-          </ScrollView>
-        </View>
-
-        {/* 기한 정보 */}
-        <View style={styles.dateCard}>
-          <Text style={styles.sectionTitle}>기한 정보</Text>
 
           <View style={styles.field}>
-            <Text style={styles.label}>{isMfg ? '제조일' : '유통기한'}</Text>
+            <Text style={styles.label}>브랜드</Text>
             <TextInput
-              style={[styles.input, baseAssumed && styles.inputWarn]}
-              value={baseDateText}
+              style={[styles.input, brandLow && styles.inputWarn]}
+              value={brand}
               onChangeText={(t) => {
-                setBaseDateText(t);
-                setBaseAssumed(false);
+                setBrand(t);
+                setBrandLow(false);
               }}
-              placeholder="예: 2027.03.15 / 2027-03"
+              placeholder="선택 입력"
               placeholderTextColor={colors.muted}
-              keyboardType="numbers-and-punctuation"
             />
-            {baseAssumed ? (
-              <Text style={styles.confidenceNote}>
-                라벨의 날짜를 유통기한으로 추정했어요 — 확인해 주세요
-              </Text>
-            ) : null}
-            {baseDateText.trim() !== '' && !parsedBase ? (
-              <Text style={styles.confidenceNote}>날짜를 읽지 못했어요 — 형식을 확인해 주세요</Text>
+            {brandLow ? (
+              <Text style={styles.confidenceNote}>인식 신뢰도가 낮아요 — 확인해 주세요</Text>
             ) : null}
           </View>
 
-          <View style={styles.toggleRow}>
-            <Text style={styles.toggleLabel}>표기가 제조일이에요</Text>
-            <Switch
-              value={isMfg}
-              onValueChange={setIsMfg}
-              trackColor={{ false: '#D7D6CE', true: colors.primary }}
-              thumbColor="#FFFFFF"
-              accessibilityLabel="표기가 제조일이에요"
-            />
+          {/* 카테고리 칩 */}
+          <View style={styles.field}>
+            <Text style={styles.label}>카테고리</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chips}
+            >
+              {(cats ?? []).map((c) => {
+                const on = c.id === categoryId;
+                return (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => setCategoryId(on ? null : c.id)}
+                    style={[styles.chip, on && styles.chipOn]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                  >
+                    <Text style={[styles.chipLabel, on && styles.chipLabelOn]}>{c.name}</Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                onPress={() => setAddingCategory(true)}
+                style={styles.chip}
+                accessibilityRole="button"
+                accessibilityLabel="카테고리 추가"
+              >
+                <Text style={[styles.chipLabel, styles.chipAdd]}>＋</Text>
+              </Pressable>
+            </ScrollView>
           </View>
 
-          <View style={styles.toggleRow}>
-            <Text style={styles.toggleLabel}>이미 개봉했어요</Text>
-            <Switch
-              value={isOpened}
-              onValueChange={setIsOpened}
-              trackColor={{ false: '#D7D6CE', true: colors.primary }}
-              thumbColor="#FFFFFF"
-              accessibilityLabel="이미 개봉했어요"
-            />
-          </View>
-          {isOpened ? (
+          {/* 기한 정보 */}
+          <View style={styles.dateCard}>
+            <Text style={styles.sectionTitle}>기한 정보</Text>
+
             <View style={styles.field}>
-              <Text style={styles.label}>개봉일</Text>
+              <Text style={styles.label}>{isMfg ? '제조일' : '유통기한'}</Text>
               <TextInput
-                style={styles.input}
-                value={openedText}
-                onChangeText={setOpenedText}
-                placeholder="예: 2026.06.01"
+                style={[styles.input, baseAssumed && styles.inputWarn]}
+                value={baseDateText}
+                onChangeText={(t) => {
+                  setBaseDateText(t);
+                  setBaseAssumed(false);
+                }}
+                placeholder="예: 2027.03.15 / 2027-03"
                 placeholderTextColor={colors.muted}
                 keyboardType="numbers-and-punctuation"
               />
+              {baseAssumed ? (
+                <Text style={styles.confidenceNote}>
+                  라벨의 날짜를 유통기한으로 추정했어요 — 확인해 주세요
+                </Text>
+              ) : null}
+              {baseDateText.trim() !== '' && !parsedBase ? (
+                <Text style={styles.confidenceNote}>
+                  날짜를 읽지 못했어요 — 형식을 확인해 주세요
+                </Text>
+              ) : null}
             </View>
-          ) : null}
 
-          {/* 만료 예정 실시간 카드 */}
-          <View style={[styles.expiryCard, !expiry && styles.expiryCardEmpty]}>
-            <View style={styles.expiryLeft}>
-              <Text style={[styles.expiryCap, !expiry && styles.expiryTextEmpty]}>만료 예정</Text>
-              <Text style={[styles.expiryDate, !expiry && styles.expiryTextEmpty]}>
-                {expiry ? formatDot(expiry.date) : '—'}
-              </Text>
-              <Text style={[styles.expiryWhy, !expiry && styles.expiryTextEmpty]}>
-                {expiry ? expiry.basis : '기한을 입력하면 자동 계산돼요'}
-              </Text>
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>표기가 제조일이에요</Text>
+              <Switch
+                value={isMfg}
+                onValueChange={setIsMfg}
+                trackColor={{ false: '#D7D6CE', true: colors.primary }}
+                thumbColor="#FFFFFF"
+                accessibilityLabel="표기가 제조일이에요"
+              />
             </View>
-            <View style={[styles.ddayPill, !expiry && styles.ddayPillEmpty]}>
-              <Text style={[styles.ddayText, !expiry && styles.ddayTextEmpty]}>
-                {dday === null ? 'D-?' : dday >= 0 ? `D-${dday}` : `D+${-dday}`}
-              </Text>
+
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>이미 개봉했어요</Text>
+              <Switch
+                value={isOpened}
+                onValueChange={setIsOpened}
+                trackColor={{ false: '#D7D6CE', true: colors.primary }}
+                thumbColor="#FFFFFF"
+                accessibilityLabel="이미 개봉했어요"
+              />
             </View>
+            {isOpened ? (
+              <View style={styles.field}>
+                <Text style={styles.label}>개봉일</Text>
+                <TextInput
+                  style={styles.input}
+                  value={openedText}
+                  onChangeText={setOpenedText}
+                  placeholder="예: 2026.06.01"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="numbers-and-punctuation"
+                />
+              </View>
+            ) : null}
+
+            {/* 만료 예정 실시간 카드 */}
+            <View style={[styles.expiryCard, !expiry && styles.expiryCardEmpty]}>
+              <View style={styles.expiryLeft}>
+                <Text style={[styles.expiryCap, !expiry && styles.expiryTextEmpty]}>만료 예정</Text>
+                <Text style={[styles.expiryDate, !expiry && styles.expiryTextEmpty]}>
+                  {expiry ? formatDot(expiry.date) : '—'}
+                </Text>
+                <Text style={[styles.expiryWhy, !expiry && styles.expiryTextEmpty]}>
+                  {expiry ? expiry.basis : '기한을 입력하면 자동 계산돼요'}
+                </Text>
+              </View>
+              <View style={[styles.ddayPill, !expiry && styles.ddayPillEmpty]}>
+                <Text style={[styles.ddayText, !expiry && styles.ddayTextEmpty]}>
+                  {dday === null ? 'D-?' : dday >= 0 ? `D-${dday}` : `D+${-dday}`}
+                </Text>
+              </View>
+            </View>
+            {dday !== null && dday < 0 ? (
+              <Text style={styles.expiredNote}>이미 만료된 제품이에요</Text>
+            ) : null}
           </View>
-          {dday !== null && dday < 0 ? (
-            <Text style={styles.expiredNote}>이미 만료된 제품이에요</Text>
-          ) : null}
-        </View>
 
-        {/* 보관 위치 */}
-        <View style={styles.field}>
-          <Text style={styles.label}>보관 위치</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            {locations.map((loc) => {
-              const on = loc === location;
-              return (
-                <Pressable
-                  key={loc}
-                  onPress={() => setLocation(on ? null : loc)}
-                  style={[styles.chip, on && styles.chipOn]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                >
-                  <Text style={[styles.chipLabel, on && styles.chipLabelOn]}>{loc}</Text>
-                </Pressable>
-              );
-            })}
-            <Pressable
-              onPress={() => setAddingLocation(true)}
-              style={styles.chip}
-              accessibilityRole="button"
-              accessibilityLabel="위치 추가"
+          {/* 보관 위치 */}
+          <View style={styles.field}>
+            <Text style={styles.label}>보관 위치</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chips}
             >
-              <Text style={[styles.chipLabel, styles.chipAdd]}>＋</Text>
-            </Pressable>
-          </ScrollView>
-        </View>
+              {locations.map((loc) => {
+                const on = loc === location;
+                return (
+                  <Pressable
+                    key={loc}
+                    onPress={() => setLocation(on ? null : loc)}
+                    style={[styles.chip, on && styles.chipOn]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                  >
+                    <Text style={[styles.chipLabel, on && styles.chipLabelOn]}>{loc}</Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                onPress={() => setAddingLocation(true)}
+                style={styles.chip}
+                accessibilityRole="button"
+                accessibilityLabel="위치 추가"
+              >
+                <Text style={[styles.chipLabel, styles.chipAdd]}>＋</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
 
-        {/* 메모 */}
-        <Pressable onPress={() => setMemoOpen((v) => !v)} accessibilityRole="button">
-          <Text style={styles.memoToggle}>{memoOpen ? '－ 메모 접기' : '＋ 메모 추가'}</Text>
-        </Pressable>
-        {memoOpen ? (
-          <TextInput
-            style={[styles.input, styles.memoArea]}
-            value={memo}
-            onChangeText={setMemo}
-            placeholder="메모"
-            placeholderTextColor={colors.muted}
-            multiline
-          />
-        ) : null}
-      </ScrollView>
+          {/* 메모 */}
+          <Pressable onPress={() => setMemoOpen((v) => !v)} accessibilityRole="button">
+            <Text style={styles.memoToggle}>{memoOpen ? '－ 메모 접기' : '＋ 메모 추가'}</Text>
+          </Pressable>
+          {memoOpen ? (
+            <TextInput
+              style={[styles.input, styles.memoArea]}
+              value={memo}
+              onChangeText={setMemo}
+              placeholder="메모"
+              placeholderTextColor={colors.muted}
+              multiline
+            />
+          ) : null}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {addingLocation && (
         <AddLocationSheet
@@ -476,7 +488,12 @@ function AddLocationSheet({
 }) {
   const [text, setText] = useState('');
   return (
-    <BottomSheet visible onClose={onClose} title="보관 위치 추가" description="예: 화장대, 냉장고, 차량">
+    <BottomSheet
+      visible
+      onClose={onClose}
+      title="보관 위치 추가"
+      description="예: 화장대, 냉장고, 차량"
+    >
       <TextInput
         style={styles.input}
         value={text}
@@ -502,6 +519,9 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.canvas,
+  },
+  kav: {
+    flex: 1,
   },
   appbar: {
     flexDirection: 'row',

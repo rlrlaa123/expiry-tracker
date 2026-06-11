@@ -1,8 +1,12 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing } from '@/ui/tokens';
 
-/** 하단 시트 (목업 .sheet) — 딤 탭/뒤로가기로 닫힘 */
+/**
+ * 하단 시트 (목업 .sheet) — 딤 탭/뒤로가기로 닫힘.
+ * edge-to-edge Android에서는 adjustResize가 무시되므로 KeyboardAvoidingView로
+ * 키보드 높이만큼 시트를 밀어 올린다 (시트 안 TextInput 가림 방지).
+ */
 export function BottomSheet({
   visible,
   onClose,
@@ -18,12 +22,14 @@ export function BottomSheet({
 }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.dim} onPress={onClose} accessibilityLabel="닫기" />
-      <View style={styles.sheet}>
-        <Text style={styles.title}>{title}</Text>
-        {description ? <Text style={styles.desc}>{description}</Text> : null}
-        {children}
-      </View>
+      <KeyboardAvoidingView behavior="padding" style={styles.root}>
+        <Pressable style={styles.dim} onPress={onClose} accessibilityLabel="닫기" />
+        <View style={styles.sheet}>
+          <Text style={styles.title}>{title}</Text>
+          {description ? <Text style={styles.desc}>{description}</Text> : null}
+          {children}
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -53,6 +59,9 @@ export function SheetOption({
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   dim: {
     flex: 1,
     backgroundColor: 'rgba(20,22,18,0.4)',
