@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,7 +18,20 @@ export default function HomeScreen() {
   const router = useRouter();
   const toast = useToast();
   const entries = useActiveItems();
-  const [filter, setFilter] = useState<HomeFilter>({ kind: 'all' });
+  // 알림 탭 딥링크(?filter=soon)가 초기 필터를 정하고, 칩 조작이 덮어쓴다
+  const { filter: filterParam } = useLocalSearchParams<{ filter?: string }>();
+  const [filterOverride, setFilterOverride] = useState<HomeFilter | null>(null);
+  const [lastParam, setLastParam] = useState(filterParam);
+  if (filterParam !== lastParam) {
+    // 파생 상태 리셋 패턴 — 새 딥링크 도착 시 칩 오버라이드 해제
+    setLastParam(filterParam);
+    setFilterOverride(null);
+  }
+  const filter: HomeFilter = useMemo(
+    () => filterOverride ?? (filterParam === 'soon' ? { kind: 'soon' } : { kind: 'all' }),
+    [filterOverride, filterParam],
+  );
+  const setFilter = setFilterOverride;
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [handleTarget, setHandleTarget] = useState<EnrichedItem | null>(null);

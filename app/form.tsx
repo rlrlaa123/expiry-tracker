@@ -18,6 +18,7 @@ import { categories } from '@/db/schema';
 import { todayIso, type IsoDate } from '@/domain/date';
 import { parseDates } from '@/domain/dateParser';
 import { computeExpiry, dday as calcDday } from '@/domain/expiry';
+import { AddCategorySheet } from '@/features/categories/AddCategorySheet';
 import { formatDot } from '@/features/items/enrich';
 import { createItem } from '@/features/items/mutations';
 import { recognizeCapture, type CaptureRecognition } from '@/services/recognize';
@@ -58,6 +59,7 @@ export default function FormScreen() {
   const [location, setLocation] = useState<string | null>(null);
   const [extraLocations, setExtraLocations] = useState<string[]>([]);
   const [addingLocation, setAddingLocation] = useState(false);
+  const [addingCategory, setAddingCategory] = useState(false);
   const [memoOpen, setMemoOpen] = useState(false);
   const [memo, setMemo] = useState('');
   const [saving, setSaving] = useState(false);
@@ -302,7 +304,7 @@ export default function FormScreen() {
               );
             })}
             <Pressable
-              onPress={() => toast('커스텀 카테고리는 설정에서 곧 열려요 (M5)')}
+              onPress={() => setAddingCategory(true)}
               style={styles.chip}
               accessibilityRole="button"
               accessibilityLabel="카테고리 추가"
@@ -448,6 +450,10 @@ export default function FormScreen() {
             setAddingLocation(false);
           }}
         />
+      )}
+      {addingCategory && (
+        // 설정과 동일한 시트 재사용 (SPEC §7-1 진입점 2곳) — 추가 즉시 선택
+        <AddCategorySheet onClose={() => setAddingCategory(false)} onAdded={setCategoryId} />
       )}
     </SafeAreaView>
   );
