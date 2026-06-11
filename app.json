@@ -45,7 +45,8 @@
         {
           "photosPermission": "갤러리의 라벨 사진으로 품목을 등록하기 위해 사용해요."
         }
-      ]
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
