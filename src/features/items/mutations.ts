@@ -66,3 +66,42 @@ export async function extendItemExpiry(id: string): Promise<ComputedExpiry | nul
 export function updateItemExp(id: string, exp: IsoDate | null) {
   return patchAndRecompute(id, { exp });
 }
+
+export interface CreateItemInput {
+  name: string;
+  brand: string | null;
+  categoryId: string;
+  thumbnailUri: string | null;
+  exp: IsoDate | null;
+  mfg: IsoDate | null;
+  openedAt: IsoDate | null;
+  location: string | null;
+  memo: string | null;
+}
+
+/** 확인/편집 폼 저장 — id 발급 + 만료 캐시 계산 + insert */
+export async function createItem(
+  input: CreateItemInput,
+): Promise<{ id: string; expiry: ComputedExpiry | null }> {
+  const id = `item-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  const today = todayIso();
+  const category =
+    (await db.select().from(categories).where(eq(categories.id, input.categoryId)))[0] ?? null;
+  const expiry = computeExpiry(
+    { exp: input.exp, mfg: input.mfg, openedAt: input.openedAt, paoMonthsOverride: null },
+    {
+      paoMonths: category?.paoMonths ?? null,
+      shelfLifeMonths: category?.shelfLifeMonths ?? null,
+    },
+  );
+  await db.insert(items).values({
+    id,
+    ...input,
+    computedExpiry: expiry?.date ?? null,
+    expiryBasis: expiry?.basis ?? null,
+    status: input.openedAt ? 'in_use' : 'unopened',
+    createdAt: today,
+    updatedAt: today,
+  });
+  return { id, expiry };
+}

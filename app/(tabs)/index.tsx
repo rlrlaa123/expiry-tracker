@@ -103,7 +103,7 @@ export default function HomeScreen() {
       />
 
       <Pressable
-        onPress={() => toast('카메라 등록은 M3에서 열려요')}
+        onPress={() => router.push('/camera')}
         style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
         accessibilityRole="button"
         accessibilityLabel="품목 등록 (카메라)"

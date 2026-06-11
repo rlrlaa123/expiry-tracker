@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseDates } from './dateParser';
+import { adoptDates, parseDates } from './dateParser';
 
 describe('parseDates — 실제 라벨 샘플', () => {
   it('1. "유통기한: 2026.08.15"', () => {
@@ -99,5 +99,61 @@ describe('parseDates — 실제 라벨 샘플', () => {
     expect(parseDates('EXP 2026.08.15\n유통기한 2026.08.15')).toEqual([
       { type: 'EXP', value: '2026-08-15', raw: '2026.08.15' },
     ]);
+  });
+});
+
+describe('adoptDates — 파싱 결과 채택 (SPEC §11 후처리)', () => {
+  const d = (type: 'EXP' | 'MFG' | 'UNKNOWN', value: string) => ({ type, value, raw: value });
+
+  it('EXP가 있으면 EXP 채택, MFG도 함께 보존', () => {
+    expect(adoptDates([d('MFG', '2024-01-05'), d('EXP', '2026-01-04')])).toEqual({
+      exp: '2026-01-04',
+      mfg: '2024-01-05',
+      expAssumed: false,
+    });
+  });
+
+  it('EXP 복수면 가장 이른 날짜 (보수적 채택)', () => {
+    expect(adoptDates([d('EXP', '2027-05-01'), d('EXP', '2026-08-15')])).toEqual({
+      exp: '2026-08-15',
+      mfg: null,
+      expAssumed: false,
+    });
+  });
+
+  it('MFG만 있으면 exp는 비움 (보존기간 가산은 computeExpiry 몫)', () => {
+    expect(adoptDates([d('MFG', '2024-01-05')])).toEqual({
+      exp: null,
+      mfg: '2024-01-05',
+      expAssumed: false,
+    });
+  });
+
+  it('UNKNOWN 단일이면 EXP로 가정 + expAssumed(low 처리)', () => {
+    expect(adoptDates([d('UNKNOWN', '2026-12-31')])).toEqual({
+      exp: '2026-12-31',
+      mfg: null,
+      expAssumed: true,
+    });
+  });
+
+  it('UNKNOWN 복수면 채택하지 않음 (사용자 확인 유도)', () => {
+    expect(adoptDates([d('UNKNOWN', '2024-01-05'), d('UNKNOWN', '2026-12-31')])).toEqual({
+      exp: null,
+      mfg: null,
+      expAssumed: false,
+    });
+  });
+
+  it('EXP가 있으면 UNKNOWN은 무시', () => {
+    expect(adoptDates([d('EXP', '2026-08-15'), d('UNKNOWN', '2024-01-05')])).toEqual({
+      exp: '2026-08-15',
+      mfg: null,
+      expAssumed: false,
+    });
+  });
+
+  it('빈 배열이면 전부 null', () => {
+    expect(adoptDates([])).toEqual({ exp: null, mfg: null, expAssumed: false });
   });
 });
