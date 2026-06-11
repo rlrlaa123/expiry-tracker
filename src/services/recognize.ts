@@ -38,22 +38,28 @@ function dedupeDates(dates: ParsedDate[]): ParsedDate[] {
  */
 export async function recognizeCapture(photoUri: string): Promise<CaptureRecognition> {
   const [prepared, ocrText] = await Promise.all([
-    prepareImage(photoUri).catch(() => ({ uri: photoUri })),
+    prepareImage(photoUri).catch((): { uri: string; compressed: boolean } => ({
+      uri: photoUri,
+      compressed: false,
+    })),
     recognizeKoreanText(photoUri).catch(() => ''),
   ]);
 
   let ai: AiRecognition | null = null;
-  try {
-    const cats = await db.select({ name: categories.name }).from(categories);
-    const { File } = await import('expo-file-system');
-    ai = await requestAiRecognition({
-      imageBase64: new File(prepared.uri).base64Sync(),
-      ocrText,
-      categories: cats.map((c) => c.name),
-      deviceId: getDeviceId(),
-    });
-  } catch {
-    ai = null;
+  // 압축 실패 시 AI 스킵 — 수 MB 원본의 base64Sync는 JS 스레드를 길게 막는다
+  if (prepared.compressed) {
+    try {
+      const cats = await db.select({ name: categories.name }).from(categories);
+      const { File } = await import('expo-file-system');
+      ai = await requestAiRecognition({
+        imageBase64: new File(prepared.uri).base64Sync(),
+        ocrText,
+        categories: cats.map((c) => c.name),
+        deviceId: getDeviceId(),
+      });
+    } catch {
+      ai = null;
+    }
   }
 
   const dates = dedupeDates([...(ai?.dates ?? []), ...parseDates(ocrText)]);

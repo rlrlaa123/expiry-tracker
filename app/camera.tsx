@@ -4,7 +4,12 @@ import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { RouteError } from '@/ui/RouteError';
+import { useToast } from '@/ui/Toast';
 import { colors, spacing, typography } from '@/ui/tokens';
+
+/** 렌더 중 JS 에러 시 까만 화면 대신 복구 UI */
+export const ErrorBoundary = RouteError;
 
 /**
  * 네이티브 캡처 모듈은 구 dev build APK에 없을 수 있다 (ADR 008).
@@ -49,6 +54,7 @@ function RebuildNotice() {
 function CameraBody({ modules }: { modules: NonNullable<ReturnType<typeof loadCaptureModules>> }) {
   const { CameraView, useCameraPermissions } = modules.camera;
   const router = useRouter();
+  const toast = useToast();
   const cameraRef = useRef<InstanceType<typeof CameraView>>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
@@ -63,6 +69,8 @@ function CameraBody({ modules }: { modules: NonNullable<ReturnType<typeof loadCa
     try {
       const photo = await cameraRef.current.takePictureAsync();
       goForm(photo.uri);
+    } catch {
+      toast('촬영이 안 됐어요 — 다시 한 번 눌러 주세요');
     } finally {
       setBusy(false);
     }
@@ -70,12 +78,16 @@ function CameraBody({ modules }: { modules: NonNullable<ReturnType<typeof loadCa
 
   const pickFromGallery = async () => {
     if (busy) return;
-    const result = await modules.picker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 1,
-    });
-    const asset = result.assets?.[0];
-    if (asset) goForm(asset.uri);
+    try {
+      const result = await modules.picker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+      });
+      const asset = result.assets?.[0];
+      if (asset) goForm(asset.uri);
+    } catch {
+      toast('사진을 불러오지 못했어요 — 다시 시도해 주세요');
+    }
   };
 
   if (!permission) return <View style={styles.screen} />;

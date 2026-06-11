@@ -25,8 +25,12 @@ import { recognizeCapture, type CaptureRecognition } from '@/services/recognize'
 import { persistThumbnail } from '@/services/thumbnails';
 import { BottomSheet, SheetOption } from '@/ui/BottomSheet';
 import { hapticSuccess } from '@/ui/haptics';
+import { RouteError } from '@/ui/RouteError';
 import { useToast } from '@/ui/Toast';
 import { colors, radius, spacing } from '@/ui/tokens';
+
+/** 렌더 중 JS 에러 시 까만 화면 대신 복구 UI */
+export const ErrorBoundary = RouteError;
 
 const BASE_LOCATIONS = ['욕실', '주방', '약장'];
 
