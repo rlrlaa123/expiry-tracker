@@ -1,3 +1,4 @@
+import { requireOptionalNativeModule } from 'expo';
 import { Image } from 'react-native';
 
 const MAX_LONG_SIDE = 1024;
@@ -23,13 +24,17 @@ function getImageSize(uri: string): Promise<{ width: number; height: number }> {
  * 신규 컨텍스트 API(manipulate → renderAsync 2회)는 실기기에서 촬영 직후
  * 네이티브 크래시(까만 화면)를 일으켜, 치수는 RN Image.getSize로 얻고
  * 변환은 검증된 manipulateAsync 단일 호출로 수행한다.
+ *
+ * 동적 import()는 Expo dev 서버가 별도 청크로 지연 로드해 실기기에서
+ * "Requiring unknown module"로 깨진다 — 동기 require로 같은 lazy 의미를 유지.
  */
 export async function prepareImage(uri: string): Promise<PreparedImage> {
-  const { requireOptionalNativeModule } = await import('expo');
   if (!requireOptionalNativeModule('ExpoImageManipulator')) {
     throw new Error('image manipulator unavailable in this build');
   }
-  const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- 구 APK 폴백을 위한 의도적 lazy require
+  const { manipulateAsync, SaveFormat } =
+    require('expo-image-manipulator') as typeof import('expo-image-manipulator');
 
   const { width, height } = await getImageSize(uri);
   const longSide = Math.max(width, height);

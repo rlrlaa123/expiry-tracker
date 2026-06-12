@@ -50,7 +50,9 @@ export async function recognizeCapture(photoUri: string): Promise<CaptureRecogni
   if (prepared.compressed) {
     try {
       const cats = await db.select({ name: categories.name }).from(categories);
-      const { File } = await import('expo-file-system');
+      // 동적 import()는 dev 청크 로드가 실기기에서 깨질 수 있어 동기 require 사용
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- 의도적 lazy require
+      const { File } = require('expo-file-system') as typeof import('expo-file-system');
       ai = await requestAiRecognition({
         imageBase64: new File(prepared.uri).base64Sync(),
         ocrText,
