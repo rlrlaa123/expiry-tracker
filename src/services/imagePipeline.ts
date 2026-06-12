@@ -32,8 +32,8 @@ export async function prepareImage(uri: string): Promise<PreparedImage> {
   if (!requireOptionalNativeModule('ExpoImageManipulator')) {
     throw new Error('image manipulator unavailable in this build');
   }
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- 구 APK 폴백을 위한 의도적 lazy require
   const { manipulateAsync, SaveFormat } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- 구 APK 폴백을 위한 의도적 lazy require
     require('expo-image-manipulator') as typeof import('expo-image-manipulator');
 
   const { width, height } = await getImageSize(uri);
