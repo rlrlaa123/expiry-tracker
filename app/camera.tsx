@@ -67,7 +67,8 @@ function CameraBody({ modules }: { modules: NonNullable<ReturnType<typeof loadCa
     if (busy || !cameraRef.current) return;
     setBusy(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync();
+      // 셔터음 최소화 — 일부 한국 단말은 통신사 정책으로 OS가 소리를 강제할 수 있음
+      const photo = await cameraRef.current.takePictureAsync({ shutterSound: false });
       goForm(photo.uri);
     } catch {
       toast('촬영이 안 됐어요 — 다시 한 번 눌러 주세요');
@@ -115,7 +116,7 @@ function CameraBody({ modules }: { modules: NonNullable<ReturnType<typeof loadCa
 
   return (
     <View style={styles.screen}>
-      <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+      <CameraView ref={cameraRef} style={styles.camera} facing="back" animateShutter={false} />
       <SafeAreaView style={styles.overlay} pointerEvents="box-none">
         <View style={styles.topBar}>
           <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="닫기">
