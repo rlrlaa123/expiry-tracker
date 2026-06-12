@@ -51,6 +51,8 @@ export default function FormScreen() {
 
   const [recog, setRecog] = useState<CaptureRecognition | null>(null);
   const [recognizing, setRecognizing] = useState(!!photoUri);
+  /** 찍은 사진 스트립 (압축본 uri) — 첫 장이 대표 썸네일로 저장됨 */
+  const [photos, setPhotos] = useState<string[]>([]);
 
   const [name, setName] = useState('');
   const [nameLow, setNameLow] = useState(false);
@@ -106,10 +108,13 @@ export default function FormScreen() {
   useEffect(() => {
     if (!photoUri) return;
     let cancelled = false;
+    setPhotos([photoUri]);
     recognizeCapture(photoUri).then((r) => {
       if (cancelled) return;
       setRecog(r);
       setRecognizing(false);
+      // 원본 → 압축본으로 교체
+      setPhotos((prev) => prev.map((u) => (u === photoUri ? r.thumbnailUri : u)));
       void applyRecognition(r);
     });
     return () => {
@@ -117,7 +122,7 @@ export default function FormScreen() {
     };
   }, [photoUri, applyRecognition]);
 
-  // "다른 면 찍기" — 추가 촬영 결과를 병합해 빈 필드 보강 (ADR 010)
+  // "다른 면 찍기" — 사진 스트립에 추가하고 인식 결과를 병합해 빈 필드 보강 (ADR 010)
   const addAnotherPhoto = async () => {
     if (recognizing) return;
     if (!requireOptionalNativeModule('ExponentImagePicker')) {
@@ -131,7 +136,10 @@ export default function FormScreen() {
       const asset = result.assets?.[0];
       if (!asset) return;
       setRecognizing(true);
-      const merged = mergeRecognition(recog, await recognizeCapture(asset.uri));
+      setPhotos((prev) => [...prev, asset.uri]);
+      const next = await recognizeCapture(asset.uri);
+      setPhotos((prev) => prev.map((u) => (u === asset.uri ? next.thumbnailUri : u)));
+      const merged = mergeRecognition(recog, next);
       setRecog(merged);
       await applyRecognition(merged);
     } catch {
@@ -250,38 +258,48 @@ export default function FormScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* 썸네일 + 인식 상태 */}
-          <View style={styles.thumbRow}>
-            <Pressable
-              onPress={() => router.replace('/camera')}
-              style={styles.thumb}
-              accessibilityRole="button"
-              accessibilityLabel="다시 찍기"
+          {/* 사진 스트립: 찍은 사진들 + [다른 면 추가] 타일 */}
+          <View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.photoStrip}
             >
-              {recog?.thumbnailUri || photoUri ? (
-                <Image
-                  source={{ uri: recog?.thumbnailUri ?? photoUri }}
-                  style={styles.thumbImage}
-                  contentFit="cover"
-                />
+              {photos.length === 0 ? (
+                <View style={styles.thumb}>
+                  <Text style={styles.thumbEmoji}>📦</Text>
+                </View>
               ) : (
-                <Text style={styles.thumbEmoji}>📦</Text>
+                photos.map((uri, i) => (
+                  <View key={uri} style={styles.thumb}>
+                    <Image source={{ uri }} style={styles.thumbImage} contentFit="cover" />
+                    {i === 0 && photos.length > 1 ? (
+                      <View style={styles.mainTag}>
+                        <Text style={styles.mainTagLabel}>대표</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ))
               )}
-            </Pressable>
-            <View style={styles.thumbHint}>
-              <Text style={styles.thumbTitle}>{thumbTitle}</Text>
-              <Text style={styles.thumbSub}>탭하면 다시 찍어요</Text>
-              {photoUri && !recognizing ? (
+              {photoUri ? (
                 <Pressable
                   onPress={addAnotherPhoto}
-                  hitSlop={6}
+                  disabled={recognizing}
+                  style={({ pressed }) => [
+                    styles.thumb,
+                    styles.addTile,
+                    (pressed || recognizing) && { opacity: 0.6 },
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel="다른 면 찍기"
                 >
-                  <Text style={styles.addPhoto}>＋ 다른 면 찍기</Text>
+                  <Text style={styles.addTileIcon}>＋</Text>
+                  <Text style={styles.addTileLabel}>다른 면</Text>
                 </Pressable>
               ) : null}
-            </View>
+            </ScrollView>
+            <Text style={styles.thumbTitle}>{thumbTitle}</Text>
+            <Text style={styles.thumbSub}>기한·상표가 다른 면에 있으면 ＋로 추가해 주세요</Text>
           </View>
 
           {/* PAO 제안 배너 (부분 성공) — 카테고리 기본값 또는 라벨 12M 심볼 */}
@@ -615,10 +633,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: spacing.lg,
   },
-  thumbRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
+  photoStrip: {
+    gap: 10,
+    paddingBottom: 10,
   },
   thumb: {
     width: 84,
@@ -631,16 +648,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  mainTag: {
+    position: 'absolute',
+    left: 6,
+    bottom: 6,
+    backgroundColor: 'rgba(28,30,26,0.65)',
+    borderRadius: 7,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  mainTagLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  addTile: {
+    backgroundColor: colors.surface,
+    gap: 2,
+  },
+  addTileIcon: {
+    fontSize: 22,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  addTileLabel: {
+    fontSize: 11,
+    color: colors.muted,
+  },
   thumbImage: {
     width: '100%',
     height: '100%',
   },
   thumbEmoji: {
     fontSize: 38,
-  },
-  thumbHint: {
-    flex: 1,
-    gap: 2,
   },
   thumbTitle: {
     fontSize: 13,
@@ -650,12 +690,7 @@ const styles = StyleSheet.create({
   thumbSub: {
     fontSize: 12,
     color: colors.muted,
-  },
-  addPhoto: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: colors.primary,
-    marginTop: 6,
+    marginTop: 2,
   },
   paoBanner: {
     flexDirection: 'row',
