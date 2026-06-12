@@ -38,12 +38,19 @@ function dedupeDates(dates: ParsedDate[]): ParsedDate[] {
  */
 export async function recognizeCapture(photoUri: string): Promise<CaptureRecognition> {
   const [prepared, ocrText] = await Promise.all([
-    prepareImage(photoUri).catch((): { uri: string; compressed: boolean } => ({
-      uri: photoUri,
-      compressed: false,
-    })),
-    recognizeKoreanText(photoUri).catch(() => ''),
+    prepareImage(photoUri).catch((e): { uri: string; compressed: boolean } => {
+      if (__DEV__) console.warn('[recognize] prepareImage 실패:', e?.message ?? e);
+      return { uri: photoUri, compressed: false };
+    }),
+    recognizeKoreanText(photoUri).catch((e) => {
+      if (__DEV__) console.warn('[recognize] OCR 실패:', e?.message ?? e);
+      return '';
+    }),
   ]);
+  if (__DEV__) {
+    // 인식 품질 진단용 — 프로덕션 번들에서는 제거됨
+    console.log('[recognize] OCR 텍스트 (' + ocrText.length + '자):\n' + ocrText.slice(0, 600));
+  }
 
   let ai: AiRecognition | null = null;
   // 압축 실패 시 AI 스킵 — 수 MB 원본의 base64Sync는 JS 스레드를 길게 막는다
@@ -65,6 +72,14 @@ export async function recognizeCapture(photoUri: string): Promise<CaptureRecogni
   }
 
   const dates = dedupeDates([...(ai?.dates ?? []), ...parseDates(ocrText)]);
+  if (__DEV__) {
+    console.log(
+      '[recognize] 파싱된 날짜:',
+      JSON.stringify(dates),
+      '→ 채택:',
+      JSON.stringify(adoptDates(dates)),
+    );
+  }
   return {
     thumbnailUri: prepared.uri,
     ocrText,
