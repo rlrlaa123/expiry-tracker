@@ -14,7 +14,7 @@ import {
   getNotificationPermissionStatus,
   rescheduleDigest,
 } from '@/services/notifications';
-import { BottomSheet } from '@/ui/BottomSheet';
+import { BottomSheet, SheetOption } from '@/ui/BottomSheet';
 import { Stepper } from '@/ui/Stepper';
 import { useToast } from '@/ui/Toast';
 import { colors, radius, spacing, typography } from '@/ui/tokens';
@@ -75,7 +75,12 @@ export default function SettingsScreen() {
     toast(next ? `${name} → 개봉 후 ${next}개월` : `${name} → PAO 설정 안 함`);
   };
 
-  const removeCategory = async (id: string, name: string) => {
+  // 파괴적 동작 — 확인 시트를 거친다 (UX-SCENARIOS S7)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const removeCategory = async () => {
+    if (!deleteTarget) return;
+    const { id, name } = deleteTarget;
+    setDeleteTarget(null);
     await deleteCategory(id);
     toast(`'${name}' 삭제됨 · 소속 품목은 '기타'로 이동`);
   };
@@ -144,7 +149,7 @@ export default function SettingsScreen() {
                 />
                 {!c.builtin ? (
                   <Pressable
-                    onPress={() => removeCategory(c.id, c.name)}
+                    onPress={() => setDeleteTarget({ id: c.id, name: c.name })}
                     hitSlop={8}
                     accessibilityRole="button"
                     accessibilityLabel={`${c.name} 삭제`}
@@ -207,6 +212,16 @@ export default function SettingsScreen() {
         />
       )}
       {addSheetOpen && <AddCategorySheet onClose={() => setAddSheetOpen(false)} />}
+
+      <BottomSheet
+        visible={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title={`'${deleteTarget?.name ?? ''}' 카테고리 삭제`}
+        description="소속 품목은 '기타'로 이동하고 품목 데이터는 보존돼요."
+      >
+        <SheetOption label="삭제할게요" danger onPress={removeCategory} />
+        <SheetOption label="취소" muted onPress={() => setDeleteTarget(null)} />
+      </BottomSheet>
     </SafeAreaView>
   );
 }

@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { requireOptionalNativeModule } from 'expo';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  BackHandler,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
@@ -16,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { db } from '@/db/client';
-import { categories } from '@/db/schema';
+import { categories, items } from '@/db/schema';
 import { todayIso, type IsoDate } from '@/domain/date';
 import { parseDates } from '@/domain/dateParser';
 import { computeExpiry, dday as calcDday } from '@/domain/expiry';
@@ -48,6 +49,10 @@ export default function FormScreen() {
   const toast = useToast();
   const { photoUri } = useLocalSearchParams<{ photoUri?: string }>();
   const { data: cats } = useLiveQuery(db.select().from(categories));
+  // 기존 품목들의 보관 위치도 칩으로 — 한 번 만든 위치는 계속 재사용 (UX-SCENARIOS S7)
+  const { data: usedLocations } = useLiveQuery(
+    db.selectDistinct({ location: items.location }).from(items),
+  );
 
   const [recog, setRecog] = useState<CaptureRecognition | null>(null);
   const [recognizing, setRecognizing] = useState(!!photoUri);
@@ -192,11 +197,33 @@ export default function FormScreen() {
           : '인식하지 못했어요';
 
   const locations = useMemo(() => {
-    const all = [...BASE_LOCATIONS, ...extraLocations];
-    return [...new Set(all)];
-  }, [extraLocations]);
+    const fromDb = (usedLocations ?? [])
+      .map((r) => r.location)
+      .filter((l): l is string => !!l);
+    return [...new Set([...BASE_LOCATIONS, ...fromDb, ...extraLocations])];
+  }, [usedLocations, extraLocations]);
 
   const canSave = name.trim().length > 0 && !saving;
+
+  // 폼 이탈 확인 — 입력이 있는데 ✕/뒤로가기로 유실되는 것 방지 (UX-SCENARIOS S7)
+  const dirty =
+    name.trim() !== '' || brand.trim() !== '' || memo.trim() !== '' || baseDateText.trim() !== '';
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const leave = () => router.dismissTo('/(tabs)');
+  const requestClose = () => {
+    if (dirty && !saving) setConfirmLeave(true);
+    else leave();
+  };
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (dirty && !saving) {
+        setConfirmLeave(true);
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [dirty, saving]);
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -231,12 +258,7 @@ export default function FormScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.appbar}>
-        <Pressable
-          onPress={() => router.dismissTo('/(tabs)')}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="닫기"
-        >
+        <Pressable onPress={requestClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="닫기">
           <Text style={styles.closeIcon}>✕</Text>
         </Pressable>
         <Text style={styles.appbarTitle}>새 품목</Text>
@@ -547,6 +569,23 @@ export default function FormScreen() {
         // 설정과 동일한 시트 재사용 (SPEC §7-1 진입점 2곳) — 추가 즉시 선택
         <AddCategorySheet onClose={() => setAddingCategory(false)} onAdded={setCategoryId} />
       )}
+
+      <BottomSheet
+        visible={confirmLeave}
+        onClose={() => setConfirmLeave(false)}
+        title="작성을 그만둘까요?"
+        description="입력한 내용은 저장되지 않아요."
+      >
+        <SheetOption label="계속 작성할게요" onPress={() => setConfirmLeave(false)} />
+        <SheetOption
+          label="나갈래요"
+          danger
+          onPress={() => {
+            setConfirmLeave(false);
+            leave();
+          }}
+        />
+      </BottomSheet>
     </SafeAreaView>
   );
 }

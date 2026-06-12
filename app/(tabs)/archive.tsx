@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -5,9 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { RebuySheet } from '@/features/archive/RebuySheet';
 import { useArchivedItems, type ArchivedEntry } from '@/features/archive/useArchivedItems';
 import { categoryEmoji, formatDot } from '@/features/items/enrich';
-import { rebuyItem } from '@/features/items/mutations';
+import { deleteItem, rebuyItem } from '@/features/items/mutations';
 import { dday as calcDday } from '@/domain/expiry';
 import { todayIso } from '@/domain/date';
+import { BottomSheet, SheetOption } from '@/ui/BottomSheet';
+import { hapticLight } from '@/ui/haptics';
 import { useToast } from '@/ui/Toast';
 import { colors, radius, spacing, typography } from '@/ui/tokens';
 
@@ -20,10 +23,12 @@ const FILTERS: { key: ArchiveFilter; label: string }[] = [
 ];
 
 export default function ArchiveScreen() {
+  const router = useRouter();
   const toast = useToast();
   const entries = useArchivedItems();
   const [filter, setFilter] = useState<ArchiveFilter>('all');
   const [target, setTarget] = useState<ArchivedEntry | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ArchivedEntry | null>(null);
   const [rebought, setRebought] = useState<Set<string>>(new Set());
 
   const rows = useMemo(
@@ -41,6 +46,16 @@ export default function ArchiveScreen() {
     setRebought((prev) => new Set(prev).add(sourceId));
     const d = calcDday(result.expiry?.date ?? null, todayIso());
     toast(d === null ? `${name} · 기한 미설정으로 재등록됨` : `${name} · 홈에 재등록됨 (D-${d})`);
+  };
+
+  // 이력 삭제 — 노출 버튼 없이 길게 누르기 뒤에만 (보존이 기본, UX-SCENARIOS S4)
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const name = deleteTarget.item.name;
+    const id = deleteTarget.item.id;
+    setDeleteTarget(null);
+    await deleteItem(id);
+    toast(`'${name}' 이력까지 삭제됨`);
   };
 
   return (
@@ -83,7 +98,17 @@ export default function ArchiveScreen() {
             return (
               <View key={entry.item.id}>
                 {showMonth && <Text style={styles.monthCap}>{entry.monthKey}</Text>}
-                <View style={styles.row}>
+                <Pressable
+                  style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
+                  onPress={() => router.push(`/item/${entry.item.id}`)}
+                  onLongPress={() => {
+                    hapticLight();
+                    setDeleteTarget(entry);
+                  }}
+                  delayLongPress={450}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${entry.item.name} 상세 (길게 누르면 삭제)`}
+                >
                   <View style={styles.emojiBox}>
                     <Text style={styles.emoji}>{categoryEmoji(entry.item.categoryId)}</Text>
                   </View>
@@ -112,7 +137,7 @@ export default function ArchiveScreen() {
                       <Text style={styles.rebuyLabel}>다시 샀어요</Text>
                     </Pressable>
                   )}
-                </View>
+                </Pressable>
               </View>
             );
           })
@@ -122,6 +147,16 @@ export default function ArchiveScreen() {
       {target && (
         <RebuySheet entry={target} onClose={() => setTarget(null)} onRebuy={handleRebuy} />
       )}
+
+      <BottomSheet
+        visible={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title={`'${deleteTarget?.item.name ?? ''}' 완전 삭제`}
+        description="이력까지 영구 삭제돼요. 되돌릴 수 없어요. 이력을 남겨두면 다시 살 때 도움이 돼요."
+      >
+        <SheetOption label="삭제할게요" danger onPress={handleDelete} />
+        <SheetOption label="취소" muted onPress={() => setDeleteTarget(null)} />
+      </BottomSheet>
     </SafeAreaView>
   );
 }
