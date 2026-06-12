@@ -52,7 +52,7 @@ export default function FormScreen() {
   const [recog, setRecog] = useState<CaptureRecognition | null>(null);
   const [recognizing, setRecognizing] = useState(!!photoUri);
   /** 찍은 사진 스트립 (압축본 uri) — 첫 장이 대표 썸네일로 저장됨 */
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<string[]>(photoUri ? [photoUri] : []);
 
   const [name, setName] = useState('');
   const [nameLow, setNameLow] = useState(false);
@@ -108,7 +108,6 @@ export default function FormScreen() {
   useEffect(() => {
     if (!photoUri) return;
     let cancelled = false;
-    setPhotos([photoUri]);
     recognizeCapture(photoUri).then((r) => {
       if (cancelled) return;
       setRecog(r);
