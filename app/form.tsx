@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { requireOptionalNativeModule } from 'expo';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Pressable,
@@ -22,7 +23,7 @@ import { computeExpiry, dday as calcDday } from '@/domain/expiry';
 import { AddCategorySheet } from '@/features/categories/AddCategorySheet';
 import { formatDot } from '@/features/items/enrich';
 import { createItem } from '@/features/items/mutations';
-import { recognizeCapture, type CaptureRecognition } from '@/services/recognize';
+import { mergeRecognition, recognizeCapture, type CaptureRecognition } from '@/services/recognize';
 import { persistThumbnail } from '@/services/thumbnails';
 import { BottomSheet, SheetOption } from '@/ui/BottomSheet';
 import { hapticSuccess } from '@/ui/haptics';
@@ -70,44 +71,73 @@ export default function FormScreen() {
   const [memo, setMemo] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // 사진 인식 — 결과가 오면 비어 있는 필드만 채운다 (사용자 입력 우선, low는 노란 테두리)
+  // 인식 결과로 비어 있는 필드만 채운다 (사용자 입력 우선, low는 노란 테두리)
+  const applyRecognition = useCallback(async (r: CaptureRecognition) => {
+    setRecognizedMfg((prev) => prev ?? r.adopted.mfg);
+    setBaseDateText((prev) => {
+      if (prev !== '') return prev;
+      if (r.adopted.exp) {
+        setBaseAssumed(r.adopted.expAssumed);
+        return formatDot(r.adopted.exp);
+      }
+      if (r.adopted.mfg) {
+        setIsMfg(true);
+        return formatDot(r.adopted.mfg);
+      }
+      return prev;
+    });
+    if (r.productName) {
+      setName((prev) => prev || r.productName!);
+      if (r.confidence?.productName === 'low') setNameLow(true);
+    }
+    if (r.brand) {
+      setBrand((prev) => prev || r.brand!);
+      if (r.confidence?.brand === 'low') setBrandLow(true);
+    }
+    if (r.categoryName) {
+      const matched = (await db.select().from(categories)).find((c) => c.name === r.categoryName);
+      if (matched) setCategoryId((prev) => prev ?? matched.id);
+    }
+  }, []);
+
+  // 첫 사진 인식
   useEffect(() => {
     if (!photoUri) return;
     let cancelled = false;
-    recognizeCapture(photoUri).then(async (r) => {
+    recognizeCapture(photoUri).then((r) => {
       if (cancelled) return;
       setRecog(r);
       setRecognizing(false);
-      setRecognizedMfg(r.adopted.mfg);
-      setBaseDateText((prev) => {
-        if (prev !== '') return prev;
-        if (r.adopted.exp) {
-          setBaseAssumed(r.adopted.expAssumed);
-          return formatDot(r.adopted.exp);
-        }
-        if (r.adopted.mfg) {
-          setIsMfg(true);
-          return formatDot(r.adopted.mfg);
-        }
-        return prev;
-      });
-      if (r.productName) {
-        setName((prev) => prev || r.productName!);
-        if (r.confidence?.productName === 'low') setNameLow(true);
-      }
-      if (r.brand) {
-        setBrand((prev) => prev || r.brand!);
-        if (r.confidence?.brand === 'low') setBrandLow(true);
-      }
-      if (r.categoryName) {
-        const matched = (await db.select().from(categories)).find((c) => c.name === r.categoryName);
-        if (matched && !cancelled) setCategoryId((prev) => prev ?? matched.id);
-      }
+      void applyRecognition(r);
     });
     return () => {
       cancelled = true;
     };
-  }, [photoUri]);
+  }, [photoUri, applyRecognition]);
+
+  // "다른 면 찍기" — 추가 촬영 결과를 병합해 빈 필드 보강 (ADR 010)
+  const addAnotherPhoto = async () => {
+    if (recognizing) return;
+    if (!requireOptionalNativeModule('ExponentImagePicker')) {
+      toast('이 빌드에는 카메라 모듈이 없어요');
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- 구 APK 폴백을 위한 의도적 lazy require
+    const picker = require('expo-image-picker') as typeof import('expo-image-picker');
+    try {
+      const result = await picker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
+      const asset = result.assets?.[0];
+      if (!asset) return;
+      setRecognizing(true);
+      const merged = mergeRecognition(recog, await recognizeCapture(asset.uri));
+      setRecog(merged);
+      await applyRecognition(merged);
+    } catch {
+      toast('촬영이 안 됐어요 — 다시 시도해 주세요');
+    } finally {
+      setRecognizing(false);
+    }
+  };
 
   const category = useMemo(
     () => (cats ?? []).find((c) => c.id === categoryId) ?? null,
@@ -232,6 +262,16 @@ export default function FormScreen() {
             <View style={styles.thumbHint}>
               <Text style={styles.thumbTitle}>{thumbTitle}</Text>
               <Text style={styles.thumbSub}>탭하면 다시 찍어요</Text>
+              {photoUri && !recognizing ? (
+                <Pressable
+                  onPress={addAnotherPhoto}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel="다른 면 찍기"
+                >
+                  <Text style={styles.addPhoto}>＋ 다른 면 찍기</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
 
@@ -599,6 +639,12 @@ const styles = StyleSheet.create({
   thumbSub: {
     fontSize: 12,
     color: colors.muted,
+  },
+  addPhoto: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: colors.primary,
+    marginTop: 6,
   },
   paoBanner: {
     flexDirection: 'row',

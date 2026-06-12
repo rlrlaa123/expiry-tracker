@@ -21,6 +21,28 @@ export interface CaptureRecognition {
   confidence: AiRecognition['confidence'] | null;
 }
 
+/**
+ * 추가 촬영(다른 면) 결과 병합 — 기존 인식이 우선이고 빈 곳만 보강한다 (ADR 010).
+ * 날짜는 합집합 후 재채택, 썸네일은 첫 사진 유지.
+ */
+export function mergeRecognition(
+  prev: CaptureRecognition | null,
+  next: CaptureRecognition,
+): CaptureRecognition {
+  if (!prev) return next;
+  const dates = dedupeDates([...prev.dates, ...next.dates]);
+  return {
+    thumbnailUri: prev.thumbnailUri,
+    ocrText: [prev.ocrText, next.ocrText].filter(Boolean).join('\n'),
+    dates,
+    adopted: adoptDates(dates),
+    productName: prev.productName ?? next.productName,
+    brand: prev.brand ?? next.brand,
+    categoryName: prev.categoryName ?? next.categoryName,
+    confidence: prev.confidence ?? next.confidence,
+  };
+}
+
 function dedupeDates(dates: ParsedDate[]): ParsedDate[] {
   const seen = new Set<string>();
   return dates.filter((d) => {
