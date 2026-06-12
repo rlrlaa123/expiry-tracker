@@ -26,7 +26,8 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function parseRequest(body: unknown): RecognizeRequest | null {
+/** export는 테스트용 — 런타임 진입점은 default fetch 하나뿐 */
+export function parseRequest(body: unknown): RecognizeRequest | null {
   if (typeof body !== 'object' || body === null) return null;
   const b = body as Record<string, unknown>;
   if (typeof b.image !== 'string' || b.image.length === 0) return null;

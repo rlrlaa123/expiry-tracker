@@ -1,0 +1,38 @@
+# 검증 3종(tsc·lint·vitest) + proxy 검증 — CLAUDE.md '완료의 정의'를 CI로 강제
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # typed routes 타입(.expo/types)은 CI에 없어 라우트 문자열 검증은 로컬보다 느슨함
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+
+  proxy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: proxy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: proxy/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
