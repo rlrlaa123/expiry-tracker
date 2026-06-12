@@ -1,7 +1,13 @@
 import { db } from '@/db/client';
 import { categories } from '@/db/schema';
 import type { AiRecognition } from '@/domain/aiResponse';
-import { adoptDates, parseDates, type AdoptedDates, type ParsedDate } from '@/domain/dateParser';
+import {
+  adoptDates,
+  parseDates,
+  parsePaoHint,
+  type AdoptedDates,
+  type ParsedDate,
+} from '@/domain/dateParser';
 
 import { getDeviceId } from './deviceId';
 import { prepareImage } from './imagePipeline';
@@ -14,6 +20,8 @@ export interface CaptureRecognition {
   ocrText: string;
   dates: ParsedDate[];
   adopted: AdoptedDates;
+  /** 라벨의 개봉 후 사용기한 심볼(12M 등) — 개월 (없으면 null) */
+  paoHint: number | null;
   /** AI 인식 필드 — 오프라인/실패 시 null (OCR-only) */
   productName: string | null;
   brand: string | null;
@@ -36,6 +44,7 @@ export function mergeRecognition(
     ocrText: [prev.ocrText, next.ocrText].filter(Boolean).join('\n'),
     dates,
     adopted: adoptDates(dates),
+    paoHint: prev.paoHint ?? next.paoHint,
     productName: prev.productName ?? next.productName,
     brand: prev.brand ?? next.brand,
     categoryName: prev.categoryName ?? next.categoryName,
@@ -107,6 +116,7 @@ export async function recognizeCapture(photoUri: string): Promise<CaptureRecogni
     ocrText,
     dates,
     adopted: adoptDates(dates),
+    paoHint: parsePaoHint(ocrText),
     productName: ai?.productName ?? null,
     brand: ai?.brand ?? null,
     categoryName: ai?.category ?? null,

@@ -63,6 +63,8 @@ export default function FormScreen() {
   const [recognizedMfg, setRecognizedMfg] = useState<IsoDate | null>(null);
   const [isOpened, setIsOpened] = useState(false);
   const [openedText, setOpenedText] = useState(formatDot(todayIso()));
+  /** 라벨 12M 심볼 [적용] 시 품목별 PAO 덮어쓰기 */
+  const [paoOverride, setPaoOverride] = useState<number | null>(null);
   const [location, setLocation] = useState<string | null>(null);
   const [extraLocations, setExtraLocations] = useState<string[]>([]);
   const [addingLocation, setAddingLocation] = useState(false);
@@ -152,7 +154,7 @@ export default function FormScreen() {
       exp: isMfg ? null : parsedBase,
       mfg: isMfg ? parsedBase : recognizedMfg,
       openedAt: parsedOpened,
-      paoMonthsOverride: null,
+      paoMonthsOverride: paoOverride,
     },
     {
       paoMonths: category?.paoMonths ?? null,
@@ -161,7 +163,13 @@ export default function FormScreen() {
   );
   const dday = calcDday(expiry?.date ?? null, todayIso());
 
-  const showPaoBanner = !expiry && !!category?.paoMonths;
+  // PAO 제안: 카테고리 기본값 우선, 없으면 라벨의 12M 심볼 (ADR 010)
+  const paoSuggestion = category?.paoMonths
+    ? { months: category.paoMonths, source: `${category.name} 기본값` }
+    : recog?.paoHint
+      ? { months: recog.paoHint, source: '라벨 표기' }
+      : null;
+  const showPaoBanner = !expiry && paoSuggestion !== null;
 
   // 목업 3상태: 인식 성공 / 일부만 인식 / 인식 실패
   const recognizedAnything =
@@ -198,6 +206,7 @@ export default function FormScreen() {
         exp: isMfg ? null : parsedBase,
         mfg: isMfg ? parsedBase : recognizedMfg,
         openedAt: parsedOpened,
+        paoMonths: paoOverride,
         location,
         memo: memo.trim() || null,
       });
@@ -275,15 +284,17 @@ export default function FormScreen() {
             </View>
           </View>
 
-          {/* PAO 제안 배너 (부분 성공) */}
-          {showPaoBanner && category?.paoMonths ? (
+          {/* PAO 제안 배너 (부분 성공) — 카테고리 기본값 또는 라벨 12M 심볼 */}
+          {showPaoBanner && paoSuggestion ? (
             <View style={styles.paoBanner}>
               <Text style={styles.paoText}>
-                {category.name}은(는) 보통{' '}
-                <Text style={styles.paoBold}>개봉 후 {category.paoMonths}개월</Text>이에요
+                {paoSuggestion.source}:{' '}
+                <Text style={styles.paoBold}>개봉 후 {paoSuggestion.months}개월</Text>이에요
               </Text>
               <Pressable
                 onPress={() => {
+                  // 라벨 심볼이면 품목별 PAO로 저장 (카테고리 기본값은 그대로 계산에 쓰임)
+                  if (paoSuggestion.source === '라벨 표기') setPaoOverride(paoSuggestion.months);
                   setIsOpened(true);
                   setOpenedText(formatDot(todayIso()));
                 }}

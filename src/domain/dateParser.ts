@@ -43,7 +43,51 @@ const PATTERNS: { regex: RegExp; build: (m: RegExpExecArray) => IsoDate | null }
     regex: /(20\d{2})\s?[.\-/년]\s?(\d{1,2})월?(?![\d.\-/일])/g,
     build: (m) => monthEnd(+m[1], +m[2]),
   },
+  // 도트 각인 오독 복원: '20'으로 시작하는 8자 구간의 비슷한 글자를 숫자로 되돌림
+  // (실라벨: EXP20290419 → 'EP20290d19' 오독). 최후순위 — 위 패턴이 못 잡은 것만
+  {
+    regex: /(?<!\d)20[0-9OoDdIlSsBbGgqZz]{6}(?!\d)/g,
+    build: (m) => recoverStampedDate(m[0]),
+  },
 ];
+
+/** ML Kit이 각인 숫자를 오독하는 대표 글자쌍 (보수적 선별) */
+const STAMP_LOOKALIKES: Record<string, string> = {
+  O: '0',
+  o: '0',
+  D: '0',
+  I: '1',
+  l: '1',
+  Z: '2',
+  z: '2',
+  d: '4',
+  S: '5',
+  s: '5',
+  G: '6',
+  b: '6',
+  B: '8',
+  g: '9',
+  q: '9',
+};
+
+/** 숫자 5자 이상 + 복원 결과가 2000~2049년의 실제 날짜일 때만 채택 — 오탐 방지 */
+function recoverStampedDate(token: string): IsoDate | null {
+  if ((token.match(/\d/g) ?? []).length < 5) return null;
+  const mapped = [...token].map((c) => STAMP_LOOKALIKES[c] ?? c).join('');
+  if (!/^20[0-4]\d{5}$/.test(mapped)) return null;
+  return fullDate(+mapped.slice(0, 4), +mapped.slice(4, 6), +mapped.slice(6, 8));
+}
+
+/**
+ * 라벨의 개봉 후 사용기한 심볼(열린 단지 옆 '12M') 추출 — 1~36개월.
+ * 용량(120 mL) 등 오탐 방지를 위해 영숫자에 붙은 표기는 제외, 대문자 M만 인정.
+ */
+export function parsePaoHint(ocrText: string): number | null {
+  const m = /(?<![0-9A-Za-z])(\d{1,2})\s?M(?![A-Za-z0-9])/.exec(ocrText);
+  if (!m) return null;
+  const months = +m[1];
+  return months >= 1 && months <= 36 ? months : null;
+}
 
 function fullDate(y: number, m: number, d: number): IsoDate | null {
   if (m < 1 || m > 12 || d < 1 || d > lastDayOfMonth(y, m)) return null;

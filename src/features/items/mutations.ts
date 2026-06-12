@@ -78,6 +78,8 @@ export interface CreateItemInput {
   exp: IsoDate | null;
   mfg: IsoDate | null;
   openedAt: IsoDate | null;
+  /** 품목별 PAO 덮어쓰기 (라벨 12M 심볼 적용 등). null = 카테고리 기본값 */
+  paoMonths: number | null;
   location: string | null;
   memo: string | null;
 }
@@ -91,7 +93,12 @@ export async function createItem(
   const category =
     (await db.select().from(categories).where(eq(categories.id, input.categoryId)))[0] ?? null;
   const expiry = computeExpiry(
-    { exp: input.exp, mfg: input.mfg, openedAt: input.openedAt, paoMonthsOverride: null },
+    {
+      exp: input.exp,
+      mfg: input.mfg,
+      openedAt: input.openedAt,
+      paoMonthsOverride: input.paoMonths,
+    },
     {
       paoMonths: category?.paoMonths ?? null,
       shelfLifeMonths: category?.shelfLifeMonths ?? null,
@@ -129,6 +136,7 @@ export async function rebuyItem(
     exp,
     mfg: null,
     openedAt: null,
+    paoMonths: src.paoMonths,
     location: src.location,
     memo: null,
   });

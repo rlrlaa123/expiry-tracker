@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { adoptDates, parseDates } from './dateParser';
+import { adoptDates, parseDates, parsePaoHint } from './dateParser';
 
 describe('parseDates — 실제 라벨 샘플', () => {
   it('1. "유통기한: 2026.08.15"', () => {
@@ -113,6 +113,42 @@ describe('parseDates — 실제 라벨 샘플', () => {
     expect(parseDates('유통기한 2025.06.30.')).toEqual([
       { type: 'EXP', value: '2025-06-30', raw: '2025.06.30' },
     ]);
+  });
+
+  it('20. 도트 각인 오독 복원: 비슷한 글자가 섞인 8자리 (실라벨: 설화수)', () => {
+    // 실제 각인 EXP20290419를 ML Kit이 'EP20290d19'로 읽음 — d→4 복원
+    expect(parseDates('OV10EP20290d19개제')).toEqual([
+      { type: 'UNKNOWN', value: '2029-04-19', raw: '20290d19' },
+    ]);
+    // O→0 복원 + 같은 줄 '제조' 문맥이면 MFG
+    expect(parseDates('제조 2024O115')).toEqual([
+      { type: 'MFG', value: '2024-01-15', raw: '2024O115' },
+    ]);
+  });
+
+  it('21. 퍼지 복원의 보수성: 숫자가 적거나 날짜로 무효면 매칭 안 함', () => {
+    expect(parseDates('CODE 20ABCDEF')).toEqual([]); // 숫자 2개뿐
+    expect(parseDates('LOT 20851315')).toEqual([]); // 13월 — 무효
+    expect(parseDates('bE2020b19')).toEqual([]); // 8자 미달 구간
+    expect(parseDates('LOT 1234202612310')).toEqual([]); // 긴 숫자열 내부는 여전히 제외
+  });
+});
+
+describe('parsePaoHint — 라벨의 개봉 후 사용기한 심볼 (12M)', () => {
+  it('단독 NM 표기를 개월로 (실라벨: 설화수 12M)', () => {
+    expect(parsePaoHint('12M\n설화수 옥용팩')).toBe(12);
+    expect(parsePaoHint('6 M')).toBe(6);
+  });
+
+  it('용량 표기(120 mL)나 일반 단어에는 반응하지 않음', () => {
+    expect(parsePaoHint('120 mL/4.05 fl. oz.')).toBeNull();
+    expect(parsePaoHint('MADE IN KOREA')).toBeNull();
+    expect(parsePaoHint('TN13M2')).toBeNull();
+  });
+
+  it('범위 밖(0, 37+)은 무시', () => {
+    expect(parsePaoHint('0M')).toBeNull();
+    expect(parsePaoHint('99M')).toBeNull();
   });
 });
 
