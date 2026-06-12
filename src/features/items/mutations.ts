@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { File } from 'expo-file-system';
 
 import { db } from '@/db/client';
 import { categories, items, type Category, type Item, type NewItem } from '@/db/schema';
@@ -32,7 +33,13 @@ async function patchAndRecompute(
 ): Promise<ComputedExpiry | null> {
   const row = await loadRow(id);
   if (!row) return null;
-  const expiry = compute({ ...row.item, ...patch }, row.category);
+  // 카테고리가 바뀌는 패치면 새 카테고리 기본값으로 재계산해야 한다
+  const category =
+    patch.categoryId && patch.categoryId !== row.item.categoryId
+      ? ((await db.select().from(categories).where(eq(categories.id, patch.categoryId)))[0] ??
+        null)
+      : row.category;
+  const expiry = compute({ ...row.item, ...patch }, category);
   await db
     .update(items)
     .set({
@@ -68,6 +75,58 @@ export async function extendItemExpiry(id: string): Promise<ComputedExpiry | nul
 /** 상세 화면 유통기한 인라인 수정 */
 export function updateItemExp(id: string, exp: IsoDate | null) {
   return patchAndRecompute(id, { exp });
+}
+
+/** 원탭 개봉 실행취소 — 미개봉 상태로 복원 (UX-SCENARIOS S5) */
+export function undoOpen(id: string) {
+  return patchAndRecompute(id, { openedAt: null, status: 'unopened' });
+}
+
+/** 개봉일 수정 — null이면 미개봉으로 복귀 */
+export function setOpenedDate(id: string, openedAt: IsoDate | null) {
+  return patchAndRecompute(
+    id,
+    openedAt ? { openedAt, status: 'in_use' } : { openedAt: null, status: 'unopened' },
+  );
+}
+
+export interface EditableFields {
+  name: string;
+  brand: string | null;
+  categoryId: string;
+  location: string | null;
+  memo: string | null;
+}
+
+/** 상세 '정보 수정' — 이름·브랜드·카테고리·위치·메모 (SPEC §9 편집, UX-SCENARIOS S4) */
+export function updateItemFields(id: string, fields: EditableFields) {
+  return patchAndRecompute(id, fields);
+}
+
+/**
+ * 완전 삭제 — 행 제거 + 다른 품목이 공유하지 않는 썸네일 파일 정리 (UX-SCENARIOS S4).
+ * 보존이 기본 원칙이므로 호출부는 반드시 확인 시트를 거칠 것.
+ */
+export async function deleteItem(id: string): Promise<void> {
+  const row = await loadRow(id);
+  if (!row) return;
+  const uri = row.item.thumbnailUri;
+  await db.delete(items).where(eq(items.id, id));
+  if (uri) {
+    // "다시 샀어요" 복사본이 같은 파일을 참조할 수 있다 — 마지막 참조일 때만 파일 삭제
+    const stillUsed = await db
+      .select({ id: items.id })
+      .from(items)
+      .where(eq(items.thumbnailUri, uri));
+    if (stillUsed.length === 0) {
+      try {
+        new File(uri).delete();
+      } catch {
+        // 파일이 이미 없어도 무방
+      }
+    }
+  }
+  void rescheduleDigest();
 }
 
 export interface CreateItemInput {

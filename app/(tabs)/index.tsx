@@ -9,7 +9,7 @@ import { HandleExpiredSheet } from '@/features/home/HandleExpiredSheet';
 import { ItemRow } from '@/features/home/ItemRow';
 import { Top5 } from '@/features/home/Top5';
 import { formatDot, type EnrichedItem } from '@/features/items/enrich';
-import { archiveItem, extendItemExpiry, openItem } from '@/features/items/mutations';
+import { archiveItem, extendItemExpiry, openItem, undoOpen } from '@/features/items/mutations';
 import { useActiveItems } from '@/features/items/useItems';
 import { hapticLight, hapticSuccess } from '@/ui/haptics';
 import { useToast } from '@/ui/Toast';
@@ -44,7 +44,10 @@ export default function HomeScreen() {
   const handleOpen = async (entry: EnrichedItem) => {
     hapticLight();
     const expiry = await openItem(entry.item.id);
-    toast(expiry ? `개봉 기록됨 · 만료 ${formatDot(expiry.date)}` : '개봉 기록됨 · 기한 미설정');
+    toast(expiry ? `개봉 기록됨 · 만료 ${formatDot(expiry.date)}` : '개봉 기록됨 · 기한 미설정', {
+      label: '실행취소',
+      onPress: () => void undoOpen(entry.item.id),
+    });
   };
 
   const closeSheet = () => setHandleTarget(null);

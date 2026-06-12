@@ -7,17 +7,22 @@ import { BottomSheet, SheetOption } from '@/ui/BottomSheet';
 import { colors } from '@/ui/tokens';
 
 /**
- * 유통기한 인라인 수정 — 네이티브 date picker 대신 자유 형식 텍스트 입력 (ADR 007).
+ * 날짜 인라인 수정 시트 — 네이티브 date picker 대신 자유 형식 텍스트 입력 (ADR 007).
  * OCR 날짜 파서를 재사용해 2027.03.15 / 2027-03 / 20270315 등을 전부 인식한다.
+ * 유통기한·개봉일 등 대상에 따라 title/description을 바꿔 재사용.
  */
 export function ExpEditSheet({
   initial,
   onClose,
   onSave,
+  title = '유통기한 수정',
+  description = '2027.03.15 · 2027-03 · 20270315 형식 모두 인식해요. 비우면 기한 미설정이 돼요.',
 }: {
   initial: IsoDate | null;
   onClose: () => void;
   onSave: (exp: IsoDate | null) => void;
+  title?: string;
+  description?: string;
 }) {
   const [text, setText] = useState(initial ?? '');
   const [error, setError] = useState(false);
@@ -37,12 +42,7 @@ export function ExpEditSheet({
   };
 
   return (
-    <BottomSheet
-      visible
-      onClose={onClose}
-      title="유통기한 수정"
-      description="2027.03.15 · 2027-03 · 20270315 형식 모두 인식해요. 비우면 기한 미설정이 돼요."
-    >
+    <BottomSheet visible onClose={onClose} title={title} description={description}>
       <TextInput
         style={[styles.input, error && styles.inputError]}
         value={text}

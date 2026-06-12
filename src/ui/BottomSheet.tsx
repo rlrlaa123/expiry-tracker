@@ -40,11 +40,13 @@ export function SheetOption({
   hint,
   onPress,
   muted,
+  danger,
 }: {
   label: string;
   hint?: string;
   onPress: () => void;
   muted?: boolean;
+  danger?: boolean;
 }) {
   return (
     <Pressable
@@ -52,7 +54,11 @@ export function SheetOption({
       style={({ pressed }) => [styles.opt, pressed && styles.optPressed]}
       accessibilityRole="button"
     >
-      <Text style={[styles.optLabel, muted && styles.optLabelMuted]}>{label}</Text>
+      <Text
+        style={[styles.optLabel, muted && styles.optLabelMuted, danger && styles.optLabelDanger]}
+      >
+        {label}
+      </Text>
       {hint ? <Text style={styles.optHint}>{hint}</Text> : null}
     </Pressable>
   );
@@ -103,6 +109,9 @@ const styles = StyleSheet.create({
   },
   optLabelMuted: {
     color: colors.muted,
+  },
+  optLabelDanger: {
+    color: colors.danger,
   },
   optHint: {
     fontSize: 12,
