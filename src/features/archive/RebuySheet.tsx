@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import type { Category, Item } from '@/db/schema';
 import type { IsoDate } from '@/domain/date';
 import { parseDates } from '@/domain/dateParser';
 import { categoryEmoji } from '@/features/items/enrich';
 import { BottomSheet } from '@/ui/BottomSheet';
 import { colors, radius } from '@/ui/tokens';
-
-import type { ArchivedEntry } from './useArchivedItems';
 
 /** "다시 샀어요" 시트 (archive-mockup .sheet) — 기한만 입력하면 재등록 완료 */
 export function RebuySheet({
@@ -15,7 +14,7 @@ export function RebuySheet({
   onClose,
   onRebuy,
 }: {
-  entry: ArchivedEntry;
+  entry: { item: Item; category: Category | null };
   onClose: () => void;
   onRebuy: (exp: IsoDate | null) => void;
 }) {
