@@ -51,6 +51,9 @@ function RebuildNotice() {
   );
 }
 
+/** 확대 단계 — zoom prop은 0(없음)~1(최대). 각인을 크게 잡기 위한 디지털 보조 */
+const ZOOM_STEPS = [0, 0.15, 0.3, 0.45] as const;
+
 function CameraBody({ modules }: { modules: NonNullable<ReturnType<typeof loadCaptureModules>> }) {
   const { CameraView, useCameraPermissions } = modules.camera;
   const router = useRouter();
@@ -58,6 +61,8 @@ function CameraBody({ modules }: { modules: NonNullable<ReturnType<typeof loadCa
   const cameraRef = useRef<InstanceType<typeof CameraView>>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
+  const [torch, setTorch] = useState(false);
+  const [zoomStep, setZoomStep] = useState(0);
 
   const goForm = (photoUri: string) => {
     router.replace({ pathname: '/form', params: { photoUri } });
@@ -116,15 +121,62 @@ function CameraBody({ modules }: { modules: NonNullable<ReturnType<typeof loadCa
 
   return (
     <View style={styles.screen}>
-      <CameraView ref={cameraRef} style={styles.camera} facing="back" animateShutter={false} />
+      <CameraView
+        ref={cameraRef}
+        style={styles.camera}
+        facing="back"
+        animateShutter={false}
+        enableTorch={torch}
+        zoom={ZOOM_STEPS[zoomStep]}
+      />
       <SafeAreaView style={styles.overlay} pointerEvents="box-none">
         <View style={styles.topBar}>
           <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="닫기">
             <Text style={styles.closeIcon}>✕</Text>
           </Pressable>
+          <Pressable
+            onPress={() => setTorch((v) => !v)}
+            hitSlop={12}
+            style={[styles.torchBtn, torch && styles.torchBtnOn]}
+            accessibilityRole="button"
+            accessibilityLabel={torch ? '손전등 끄기' : '손전등 켜기'}
+            accessibilityState={{ selected: torch }}
+          >
+            <Text style={styles.torchIcon}>🔦</Text>
+          </Pressable>
         </View>
         <View style={styles.bottom}>
-          <Text style={styles.hint}>기한 표기가 잘 보이게 찍어 주세요</Text>
+          <Text style={styles.hint}>각인된 기한은 🔦 켜고 비스듬히 — 글자에 그림자가 지게</Text>
+
+          {/* 확대 단계 — 각인을 크게 잡기 (Android 핀치줌 미지원 대체) */}
+          <View style={styles.zoomRow}>
+            <Pressable
+              onPress={() => setZoomStep((s) => Math.max(0, s - 1))}
+              disabled={zoomStep === 0}
+              hitSlop={10}
+              style={[styles.zoomBtn, zoomStep === 0 && styles.zoomBtnDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel="축소"
+            >
+              <Text style={styles.zoomBtnLabel}>−</Text>
+            </Pressable>
+            <View style={styles.zoomDots}>
+              {ZOOM_STEPS.map((_, i) => (
+                <View key={i} style={[styles.zoomDot, i <= zoomStep && styles.zoomDotOn]} />
+              ))}
+            </View>
+            <Pressable
+              onPress={() => setZoomStep((s) => Math.min(ZOOM_STEPS.length - 1, s + 1))}
+              disabled={zoomStep === ZOOM_STEPS.length - 1}
+              hitSlop={10}
+              style={[styles.zoomBtn, zoomStep === ZOOM_STEPS.length - 1 && styles.zoomBtnDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel="확대"
+            >
+              <Text style={styles.zoomBtnLabel}>＋</Text>
+            </Pressable>
+          </View>
+
           <View style={styles.controls}>
             <Pressable onPress={pickFromGallery} hitSlop={10} accessibilityRole="button" accessibilityLabel="갤러리에서 선택">
               <Text style={styles.galleryIcon}>🖼️</Text>
@@ -164,13 +216,67 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.sm,
-    alignItems: 'flex-start',
   },
   closeIcon: {
     fontSize: 22,
     color: '#FFFFFF',
+  },
+  torchBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(16,18,16,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  torchBtnOn: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+  },
+  torchIcon: {
+    fontSize: 20,
+  },
+  zoomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: 'rgba(16,18,16,0.55)',
+    borderRadius: 99,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  zoomBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomBtnDisabled: {
+    opacity: 0.3,
+  },
+  zoomBtnLabel: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  zoomDots: {
+    flexDirection: 'row',
+    gap: 7,
+    alignItems: 'center',
+  },
+  zoomDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  zoomDotOn: {
+    backgroundColor: '#FFFFFF',
   },
   bottom: {
     paddingBottom: 34,

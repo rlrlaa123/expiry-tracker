@@ -10,7 +10,7 @@ import {
 } from '@/domain/dateParser';
 
 import { getDeviceId } from './deviceId';
-import { prepareImage } from './imagePipeline';
+import { cropCenterForOcr, prepareImage } from './imagePipeline';
 import { recognizeKoreanText } from './ocr';
 import { requestAiRecognition } from './recognitionApi';
 
@@ -68,7 +68,7 @@ function dedupeDates(dates: ParsedDate[]): ParsedDate[] {
  * 실패는 전부 조용한 폴백 — 에러 팝업 금지: AI 실패 = OCR-only, OCR 실패 = 빈 폼.
  */
 export async function recognizeCapture(photoUri: string): Promise<CaptureRecognition> {
-  const [prepared, ocrText] = await Promise.all([
+  const [prepared, firstText] = await Promise.all([
     prepareImage(photoUri).catch((e): { uri: string; compressed: boolean } => {
       if (__DEV__) console.warn('[recognize] prepareImage 실패:', e?.message ?? e);
       return { uri: photoUri, compressed: false };
@@ -80,7 +80,22 @@ export async function recognizeCapture(photoUri: string): Promise<CaptureRecogni
   ]);
   if (__DEV__) {
     // 인식 품질 진단용 — 프로덕션 번들에서는 제거됨
-    console.log('[recognize] OCR 텍스트 (' + ocrText.length + '자):\n' + ocrText.slice(0, 600));
+    console.log('[recognize] OCR 텍스트 (' + firstText.length + '자):\n' + firstText.slice(0, 600));
+  }
+
+  // 1차에서 날짜를 못 찾으면 중앙 크롭본으로 OCR 1회 더 (각인·도트 기한 보강, M8-2)
+  let ocrText = firstText;
+  if (parseDates(firstText).length === 0) {
+    const cropUri = await cropCenterForOcr(photoUri);
+    if (cropUri) {
+      const retryText = await recognizeKoreanText(cropUri).catch(() => '');
+      if (parseDates(retryText).length > 0) {
+        ocrText = [firstText, retryText].filter(Boolean).join('\n');
+        if (__DEV__) console.log('[recognize] 중앙 크롭 재시도 성공:\n' + retryText.slice(0, 300));
+      } else if (__DEV__) {
+        console.log('[recognize] 중앙 크롭 재시도에도 날짜 없음');
+      }
+    }
   }
 
   let ai: AiRecognition | null = null;
